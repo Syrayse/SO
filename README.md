@@ -8,7 +8,7 @@ De forma a permitir uma maior organização e agilização do processo de desenv
 
 ### Ficheiros `.h`
 
-Os contratos, denominados de *header files*, devem ser colocados na pasta `include/`.
+Os contratos, denominados de *header files*, devem ser colocados na pasta `includes/`.
 
 ### Ficheiros `.c`
 
