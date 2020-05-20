@@ -4,6 +4,16 @@
 #ifndef _COMMON_SO_
 #define _COMMON_SO_
 
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+/**
+ * Define o tamanho de buffer default do sistema.
+ */
+#define MAX_BUFFER_SIZE 10240
+
 /**
  * Define o pipe com nome utilizado nas comunicações do cliente para o
  * server.

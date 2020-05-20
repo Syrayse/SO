@@ -10,7 +10,7 @@ SOURCES_OBJ=Common.o
 %.o : %.c $(DEPS)
 		$(CC) $(CFLAGS) -c -o $@ $<
 
-instal: pipes server
+instal: pipes client server
 
 server: Servidor.o $(SOURCES_OBJ)
 	$(CC) $(CFLAGS) Servidor.o $(SOURCES_OBJ) -o server
@@ -28,3 +28,4 @@ clean:
 	rm -rf cl2srpipe
 	rm -rf sr2clpipe
 	rm -rf pipes
+	rm -rf client
