@@ -6,7 +6,7 @@
 #include <unistd.h>
 
 void throw_error(int fd, char * msg) {
-  char * str = "" ;// = strdup(msg);
+  char * str = "" ;
   ssize_t w = asprintf(&str, "ERROR: %s\n", msg);
 
   // Erro a alocar espaço da string.

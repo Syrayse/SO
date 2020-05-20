@@ -6,3 +6,5 @@
 *.out
 *.idx
 log
+cl2srpipe
+sr2clpipe

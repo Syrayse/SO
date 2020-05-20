@@ -4,17 +4,27 @@ CC=gcc
 CFLAGS = -Wall -g -Ofast -I$(IDIR)
 
 DEPS=$(IDIR)/$(wildcard *.h)
-SOURCES=$(wildcard *.c)
-SOURCES_OBJ=$(patsubst %.c,%.o,$(SOURCES))
+
+SOURCES_OBJ=Common.o
 
 %.o : %.c $(DEPS)
 		$(CC) $(CFLAGS) -c -o $@ $<
 
-server: $(SOURCES_OBJ)
-	$(CC) $(CFLAGS) $(SOURCES_OBJ) -o server
+instal: pipes server
 
-print-% : ; @echo $* = $($*)
+server: Servidor.o $(SOURCES_OBJ)
+	$(CC) $(CFLAGS) Servidor.o $(SOURCES_OBJ) -o server
+
+client: Cliente.o $(SOURCES_OBJ)
+	$(CC) $(CFLAGS) Cliente.o $(SOURCES_OBJ) -o client
+
+
+pipes: pipes.o $(SOURCES_OBJ)
+	$(CC) $(CFLAGS) pipes.o $(SOURCES_OBJ) -o pipes
 
 clean:
 	rm -rf *.o
 	rm -rf server
+	rm -rf cl2srpipe
+	rm -rf sr2clpipe
+	rm -rf pipes
