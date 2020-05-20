@@ -2,17 +2,23 @@
 #include "Request.h"
 #include <stdio.h>
 
+#define BASE_PIPE_TIMEOUT 10
+#define BASE_EXEC_TIMEOUT 20
+
 typedef void (*DispatchFunc)(char**);
 
+unsigned int g_pipe_timeout = BASE_PIPE_TIMEOUT;
+unsigned int g_exec_timeout = BASE_EXEC_TIMEOUT;
+int pipe_reader, pipe_writer;
+
 void process_pipe_timeout(char** argv) {
-  //g_pipe_timeout = atoi(argv[0]);
-  printf("pipe timeout\n");
+  g_pipe_timeout = atoi(argv[0]);
 }
 
 void process_exec_timeout(char** argv) {
-  //g_exec_timeout = atoi(argv[0]);
-  printf("exec timeout\n");
+  g_exec_timeout = atoi(argv[0]);
 }
+
 void process_exec_task(char** argv) {
   // Devera executar um novo processo
   // Novo processo serializa task e comunica o respectivo id.
@@ -32,8 +38,10 @@ void process_kill_task(char** argv) {
 }
 
 void process_list_history(char** argv) {
+  char* str = "";
   // Faz dump do processo de historico.
-  printf("list history");
+  ssize_t n = asprintf(&str, "the list is here sire\n");
+  write(pipe_writer, str, n);
 }
 
 void setup_dispatcher(DispatchFunc *v) {
@@ -47,14 +55,16 @@ void setup_dispatcher(DispatchFunc *v) {
 
 
 int main() {
-  int i, fd1 = open(CL_TO_SR_PIPE, O_RDONLY);;
+  int i;
+  pipe_reader = open(CL_TO_SR_PIPE, O_RDONLY);
+  pipe_writer = open(SR_TO_CL_PIPE, O_WRONLY);
   ssize_t n;
   Request r;
   char buffer[MAX_BUFFER_SIZE];
   DispatchFunc req_dispatch[LIST_HISTORY + 1];
   setup_dispatcher(req_dispatch);
 
-  while( (n = read(fd1, buffer, MAX_BUFFER_SIZE)) > 0 ) {
+  while( (n = read(pipe_reader, buffer, MAX_BUFFER_SIZE)) > 0 ) {
     r = deserialize_request(buffer, n);
 
     printf("##################\n");

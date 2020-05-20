@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #include "Common.h"
 #include <stdio.h>
 

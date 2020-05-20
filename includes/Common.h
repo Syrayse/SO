@@ -4,6 +4,8 @@
 #ifndef _COMMON_SO_
 #define _COMMON_SO_
 
+#define _GNU_SOURCE
+
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
