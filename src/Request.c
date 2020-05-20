@@ -1,5 +1,6 @@
 #include "Common.h"
 #include "Request.h"
+#include <stdio.h>
 
 char* serialize_request(Request request, ssize_t *length) {
   int i;
@@ -13,16 +14,18 @@ char* serialize_request(Request request, ssize_t *length) {
   unsigned int *lens = malloc(sizeof(unsigned int) * request->nArgs);
 
   /* Calcula os offsets primeiro */
-  if(request->nArgs > 0)
+  if(request->nArgs > 0) {
     offsets[0] = 0;
 
-  for(i = 1; i < request->nArgs; i++) {
+    for(i = 1; i < request->nArgs; i++) {
+      lens[i - 1] = strlen(request->argv[i - 1]);
+      byte_size += lens[i - 1];
+      offsets[i] = byte_size;
+    }
+
     lens[i - 1] = strlen(request->argv[i - 1]);
     byte_size += lens[i - 1];
-    offsets[i] = byte_size;
   }
-  lens[i - 1] = strlen(request->argv[i - 1]);
-  byte_size += lens[i - 1];
 
   /* Add overhead */
   byte_size += 2 * sizeof(unsigned int)
@@ -55,7 +58,7 @@ char* serialize_request(Request request, ssize_t *length) {
 
 Request deserialize_request(char* buffer, ssize_t length) {
   /* Deve haver pelo menos 2 * sizeof(int) bytes */
-  int i;
+  unsigned int N, i = 0;
   Request request = NULL;
   char *tmp, *offsetdata = NULL;
   ssize_t arglen, *offsets, base;
@@ -68,38 +71,40 @@ Request deserialize_request(char* buffer, ssize_t length) {
 
     // Estabelece o numero de argumentos.
     request->nArgs = *(unsigned int*)(buffer + sizeof(unsigned int));
-
     // Partindo disto, podemos construir os offsets;
     offsetdata = buffer + 2 * sizeof(unsigned int);
     offsets = (ssize_t*)malloc(sizeof(ssize_t) * request->nArgs);
+
     for(i = 0; i < request->nArgs; i++) {
       offsets[i] = *(ssize_t*)(offsetdata + sizeof(ssize_t) * i);
     }
-
     // Assim sendo, passa a ser possivel povoar os argumentos em si.
     request->argv = malloc(sizeof(char*) * (request->nArgs + 1));
     request->argv[request->nArgs] = NULL;
 
-    i = 0;
+    N = request->nArgs;
     base = 2 * sizeof(unsigned int) + request->nArgs * sizeof(ssize_t);
     // Define os primeiros N - 1 argumentos;
-    for( ; i < request->nArgs - 1; i++) {
-      arglen = offsets[i + 1] - offsets[i];
-      tmp = malloc(sizeof(char) * (arglen + 1));
-      memcpy(tmp, buffer + base + offsets[i], arglen);
-      tmp[arglen] = '\0';
-      request->argv[i] = tmp;
-    }
 
+    for(i = 1 ; i < N; i++) {
+      arglen = offsets[i] - offsets[i - 1];
+      tmp = malloc(sizeof(char) * (arglen + 1));
+
+      memcpy(tmp, buffer + base + offsets[i - 1], arglen);
+
+      tmp[arglen] = '\0';
+
+      request->argv[i-1] = tmp;
+
+    }
     // Define o ultimo argumento.
     if(request->nArgs > 0) {
-      arglen = length - offsets[i];
+      arglen = length - offsets[i-1] - base;
       tmp = malloc(sizeof(char) * (arglen + 1));
-      memcpy(tmp, buffer + base + offsets[i], arglen);
+      memcpy(tmp, buffer + base + offsets[i-1], arglen);
       tmp[arglen] = '\0';
-      request->argv[i] = tmp;
+      request->argv[i-1] = tmp;
     }
-
     free(offsets);
   }
 

@@ -12,11 +12,13 @@ unsigned int g_exec_timeout = BASE_EXEC_TIMEOUT;
 int pipe_reader, pipe_writer;
 
 void process_pipe_timeout(char** argv) {
-  g_pipe_timeout = atoi(argv[0]);
+  //g_pipe_timeout = atoi(argv[0]);
+  printf("PIPE TIMEOUT\n");
 }
 
 void process_exec_timeout(char** argv) {
-  g_exec_timeout = atoi(argv[0]);
+  //g_exec_timeout = atoi(argv[0]);
+  printf("EXEC TIMEOUT\n");
 }
 
 void process_exec_task(char** argv) {

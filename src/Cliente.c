@@ -7,6 +7,7 @@ int pipe_reader, pipe_writer;
 
 int main() {
   //srand(time(NULL));
+  int i, N;
   pipe_writer = open(CL_TO_SR_PIPE, O_WRONLY);
   pipe_reader = open(SR_TO_CL_PIPE, O_RDONLY);
 
@@ -25,12 +26,14 @@ int main() {
   }
 
   while(1) {
+    int N = rand() % (LIST_HISTORY + 1);
     Request r = malloc(sizeof(struct request));
-    r->ID = rand() % (LIST_HISTORY + 1);
-    r->nArgs = 2;
-    r->argv = malloc(sizeof(char*)*2);
-    r->argv[0] = strdup("100");
-    r->argv[1] = strdup("lol2");
+    r->ID = N;
+    r->nArgs = N;
+    r->argv = malloc(sizeof(char*)*N);
+    for(i = 0; i < N; i++) {
+      r->argv[i] = strdup("100");
+    }
 
     char * buffer = serialize_request(r, &n);
 
