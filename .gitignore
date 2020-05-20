@@ -1,1 +1,8 @@
-src/out/*
+*.o
+*.tex
+*.md
+*.log
+*.aux
+*.out
+*.idx
+log

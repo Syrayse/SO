@@ -1,29 +1,20 @@
-PROJ=program
-IDIR=../include
-ODIR=obj
-LDIR=lib
-OLDIR=$(ODIR)/lib
+IDIR=../includes
 
 CC=gcc
-CFLAGS = -Wall -ansi -g -Ofast `pkg-config --cflags glib-2.0` -I$(IDIR)
+CFLAGS = -Wall -g -Ofast -I$(IDIR)
 
 DEPS=$(IDIR)/$(wildcard *.h)
 SOURCES=$(wildcard *.c)
-MY_LIBS=$(wildcard $(LDIR)/*.c)
-SOURCES_OBJ=$(patsubst %.c,$(ODIR)/%.o,$(SOURCES))
-MY_LIBS_OBJ=$(foreach o, $(patsubst %.c,%.o,$(MY_LIBS)), $(ODIR)/$o)
+SOURCES_OBJ=$(patsubst %.c,%.o,$(SOURCES))
 
-LIBS=`pkg-config --libs glib-2.0`
+%.o : %.c $(DEPS)
+		$(CC) $(CFLAGS) -c -o $@ $<
 
-program: $(SOURCES_OBJ) $(MY_LIBS_OBJ)
-	$(CC) $(CFLAGS) $(wildcard $(ODIR)/*.o) $(wildcard $(OLDIR)/*.o) -o $(PROJ) $(LIBS)
+server: $(SOURCES_OBJ)
+	$(CC) $(CFLAGS) $(SOURCES_OBJ) -o server
 
 print-% : ; @echo $* = $($*)
 
-$(ODIR)/%.o : %.c $(DEPS)
-		$(CC) $(CFLAGS) -c -o $@ $<
-
 clean:
-	rm -rf $(ODIR)/*.o
-	rm -rf $(ODIR)/$(LDIR)/*.o
-	rm -rf $(PROJ)
+	rm -rf *.o
+	rm -rf server
