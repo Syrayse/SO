@@ -5,7 +5,7 @@ CFLAGS = -Wall -g -Ofast -I$(IDIR)
 
 DEPS=$(IDIR)/$(wildcard *.h)
 
-SOURCES_OBJ=Common.o
+SOURCES_OBJ=Common.o Request.o
 
 %.o : %.c $(DEPS)
 		$(CC) $(CFLAGS) -c -o $@ $<
@@ -16,7 +16,7 @@ server: Servidor.o $(SOURCES_OBJ)
 	$(CC) $(CFLAGS) Servidor.o $(SOURCES_OBJ) -o server
 
 client: Cliente.o $(SOURCES_OBJ)
-	$(CC) $(CFLAGS) Cliente.o $(SOURCES_OBJ) -o client
+	$(CC) $(CFLAGS) Cliente.o $(SOURCES_OBJ) -o argus
 
 
 pipes: pipes.o $(SOURCES_OBJ)
@@ -28,4 +28,5 @@ clean:
 	rm -rf cl2srpipe
 	rm -rf sr2clpipe
 	rm -rf pipes
+	rm -rf argus
 	rm -rf client

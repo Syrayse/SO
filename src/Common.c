@@ -1,8 +1,6 @@
 #define _GNU_SOURCE
 #include "Common.h"
 #include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 
 void throw_error(int fd, char * msg) {
   char * str = "" ;
