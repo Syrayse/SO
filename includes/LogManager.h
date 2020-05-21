@@ -20,4 +20,6 @@ int redir_log_file(int fd);
 
 ssize_t get_buffer_info(unsigned long ID);
 
+void readapt_log_offset(unsigned long ID);
+
 #endif

@@ -6,7 +6,7 @@ off_t curr_offset, log_offset;
 unsigned long num_elems;
 
 unsigned long entry_size() {
-  return (sizeof(unsigned long) + sizeof(off_t) + sizeof(ssize_t));
+  return (sizeof(unsigned long) + sizeof(off_t) + sizeof(off_t));
 }
 
 unsigned long init_log_file() {
@@ -44,7 +44,7 @@ ssize_t get_offset_size(unsigned long ID, ssize_t *size) {
     throw_error(2, "Nao conseguiu ler log file");
 
   offset = *(ssize_t*)(buffer + sizeof(unsigned long));
-  *size = *(ssize_t*)(buffer + N - sizeof(ssize_t));
+  *size = *(ssize_t*)(buffer + N - sizeof(off_t));
 
   return offset;
 }
@@ -118,6 +118,8 @@ ssize_t get_buffer_info(unsigned long ID) {
   ssize_t w, size, tmp, procd = 0;
   ssize_t offset = get_offset_size(ID, &size);
 
+  printf("id:%ld\toff:%ld\tsize%ld\n", ID, offset, size);
+
   if(offset == -1) {
     sprintf(strbuff, "Nao existe algum ID %ld na base.", ID);
     throw_error(2, strbuff);
@@ -130,7 +132,7 @@ ssize_t get_buffer_info(unsigned long ID) {
   // Escreve no stdout cada MAX_BUFFER_SIZE que encontrar
   // até ao fim.
   while(procd < size) {
-    tmp = read(log_file, strbuff, MAX_BUFFER_SIZE);
+    tmp = read(log_file, strbuff, size);
 
     if(tmp == -1) {
       throw_error(2, "Nao conseguiu ler ficheiro de logs.");

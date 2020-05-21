@@ -1,5 +1,6 @@
 #include "Common.h"
 #include "Request.h"
+#include "LogManager.h"
 #include <stdio.h>
 
 #define BASE_PIPE_TIMEOUT 10
@@ -62,7 +63,15 @@ void setup_dispatcher(DispatchFunc *v) {
 
 
 int main() {
+  unsigned long x = init_log_file();
+
+  get_buffer_info(2);
+  printf("consegui %ld\n", x);
+
+  redir_log_file(1);
+
   int i;
+  unsigned long id = 0;
   pipe_reader = open(CL_TO_SR_PIPE, O_RDONLY);
   pipe_writer = open(SR_TO_CL_PIPE, O_WRONLY);
   ssize_t n;
@@ -71,18 +80,19 @@ int main() {
   DispatchFunc req_dispatch[LIST_HISTORY + 1];
   setup_dispatcher(req_dispatch);
 
-  while( (n = read(pipe_reader, buffer, MAX_BUFFER_SIZE)) > 0 ) {
+  while( (n = read(pipe_reader, buffer, MAX_BUFFER_SIZE)) > 0 && id < 5 ) {
     r = deserialize_request(buffer, n);
 
     printf("##################\n");
     printf("ID:%d\nnArgs:%d\n",r->ID, r->nArgs);
     for(i = 0; i < r->nArgs; i++)
       printf("\tword %d: %s\n", i, r->argv[i]);
-    sleep(5);
     (*req_dispatch[r->ID])(r->argv);
     printf("##################\n");
+    readapt_log_offset(id);
 
     free(r);
+    id++;
   }
 
   return 0;

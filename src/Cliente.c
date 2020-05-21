@@ -1,6 +1,7 @@
 #include "Common.h"
 #include "Request.h"
 #include <stdio.h>
+#include "LogManager.h"
 
 int pipe_reader, pipe_writer, read_server = 1;
 
@@ -32,7 +33,7 @@ void parse_shell() {
   int i, N;
   ssize_t n;
   while(1) {
-    N = LIST_HISTORY;
+    N = rand() % 5;
     Request r = malloc(sizeof(struct request));
     r->ID = N;
     r->nArgs = N;
@@ -161,6 +162,7 @@ int main(int argc, char *argv[]) {
   signal(SIGUSR1, dont_read_server);
 
   ssize_t n, d;
+  unsigned long used = 0;
   char buff[MAX_BUFFER_SIZE];
 
   /* Um dos forks fica sempre a imprimir o que o provem do servidor. */
