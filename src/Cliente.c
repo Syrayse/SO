@@ -58,23 +58,23 @@ void parse_shell_inputs(int argc, char *argv[]) {
   char * buff = "";
 
   if( !strcmp(argv[0], "tempo-inactividade") && argc > 1) {
-    request = request_pipe_timeout(argv + 2, 1);
+    request = request_pipe_timeout(argv + 1, 1);
     allok = 1;
   }
   else if( !strcmp(argv[0], "tempo-execucao") && argc > 1 ) {
-    request = request_exec_timeout(argv + 2, 1);
+    request = request_exec_timeout(argv + 1, 1);
     allok = 1;
   }
   else if( !strcmp(argv[0], "executar") && argc > 1 ) {
-    request = request_execute_task(argv + 2, 1);
+    request = request_execute_task(argv + 1, 1);
     allok = 1;
   }
-  else if( !strcmp(argv[0], "listar") && argc > 1 ) {
-    request = request_kill_task(argv + 2, 1);
+  else if( !strcmp(argv[0], "terminate") && argc > 1 ) {
+    request = request_kill_task(argv + 1, 1);
     allok = 1;
   }
   else if( !strcmp(argv[0], "output") && argc > 1 ) {
-    request = request_spec_output(argv + 2, 1);
+    request = request_spec_output(argv + 1, 1);
     allok = 1;
   }
   else if( !strcmp(argv[0], "listar") ) {
@@ -110,23 +110,23 @@ void parse_arguments(int argc, char *argv[]) {
   char * buff = "";
 
   if( !strcmp(argv[0], "-i") && argc > 1) {
-    request = request_pipe_timeout(argv + 2, 1);
+    request = request_pipe_timeout(argv + 1, 1);
     allok = 1;
   }
   else if( !strcmp(argv[0], "-m") && argc > 1 ) {
-    request = request_exec_timeout(argv + 2, 1);
+    request = request_exec_timeout(argv + 1, 1);
     allok = 1;
   }
   else if( !strcmp(argv[0], "-e") && argc > 1 ) {
-    request = request_execute_task(argv + 2, 1);
+    request = request_execute_task(argv + 1, 1);
     allok = 1;
   }
   else if( !strcmp(argv[0], "-t") && argc > 1 ) {
-    request = request_kill_task(argv + 2, 1);
+    request = request_kill_task(argv + 1, 1);
     allok = 1;
   }
   else if( !strcmp(argv[0], "-o") && argc > 1 ) {
-    request = request_spec_output(argv + 2, 1);
+    request = request_spec_output(argv + 1, 1);
     allok = 1;
   }
   else if( !strcmp(argv[0], "-l") ) {
@@ -192,12 +192,13 @@ int main(int argc, char *argv[]) {
   // Notifica a thread filha que deverá terminar assim que receber a resposta
   // seguinte do servidor. Devemos fazer isto para evitar terminar a execucao do
   // argus sem antes de obter uma resposta do servidor.
+
   d = kill(son, SIGUSR1);
 
   if(d == -1)
     throw_error(2, "Impossivel enviar sinal.");
 
-  wait(NULL);
+  waitpid(son, NULL, WUNTRACED);
 
   return 0;
 }

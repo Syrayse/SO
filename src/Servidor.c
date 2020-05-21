@@ -11,6 +11,76 @@ typedef void (*DispatchFunc)(char**);
 unsigned int g_pipe_timeout = BASE_PIPE_TIMEOUT;
 unsigned int g_exec_timeout = BASE_EXEC_TIMEOUT;
 int pipe_reader, pipe_writer;
+unsigned long id_pedido;
+
+void redirect(int oldfd, int newfd) {
+	if(oldfd != newfd) {
+		dup2(oldfd, newfd);
+		close(oldfd);
+	}
+}
+
+void run(char * argv, int in, int out) {
+  	redirect(in, STDIN_FILENO);
+  	redirect(out, STDOUT_FILENO);
+
+    // Para ja isto chega para testes, mas depois tenho de fazer
+    // a minha propria funcao.
+  	if( system(argv) == -1)
+      throw_error(2, "Erro a executar commando.");
+
+  	_exit(0);
+}
+
+void pipe_process(char *command[], int n) {
+
+  	int i = 0, in = STDIN_FILENO;
+  	for ( ; i < (n-1); ++i) {
+	    int fd[2];
+    	pid_t pid;
+
+  		if( pipe(fd) == -1)
+        throw_error(2, "Erro ao criar pipes.");
+
+  		pid = fork();
+
+    	if (pid == 0) {
+      		close(fd[0]);
+      		run(command[i], in, fd[1]);
+    	}
+    	else if (pid > 0) {
+      		close(fd[1]);
+      		close(in);
+      		in = fd[0];
+    	}
+      else {
+        throw_error(2, "Erro a executar comando.");
+        return;
+      }
+  	}
+
+  	run(command[i], in, STDOUT_FILENO);
+}
+
+void process_line(char *str) {
+	int i, N = 0;
+	char **command = malloc(sizeof(char*)*10);
+	char *token = strtok(str, "|");
+
+	while(token != NULL) {
+		command[N++] = strdup(token);
+		token = strtok(NULL,"|");
+	}
+
+	pipe_process(command, N);
+
+	for(i = 0; i < N; i++) {
+		free(command[i]);
+	}
+
+	free(command);
+
+}
 
 void process_pipe_timeout(char** argv) {
   //g_pipe_timeout = atoi(argv[0]);
@@ -23,9 +93,34 @@ void process_exec_timeout(char** argv) {
 }
 
 void process_exec_task(char** argv) {
+  pid_t pid;
+  ssize_t n;
+  char * str = "";
   // Devera executar um novo processo
   // Novo processo serializa task e comunica o respectivo id.
-  printf("exec task\n");
+  throw_error(pipe_writer, argv[0]);
+
+  if(!fork()) {
+    redir_log_file(1);
+
+    pid = fork();
+
+    if(!pid) {
+      process_line(argv[0]);
+      _exit(0);
+    }
+    else {
+      wait(NULL);
+      readapt_log_offset(id_pedido++);
+      
+      n = asprintf(&str, "nova tarefa #%ld.\n", id_pedido - 1);
+
+      if(write(pipe_writer, str, n) == -1)
+        throw_error(2, "Erro ao submeter info no pipe.");
+    }
+
+    _exit(0);
+  }
 }
 
 void process_list_execs(char** argv) {
@@ -63,12 +158,8 @@ void setup_dispatcher(DispatchFunc *v) {
 
 
 int main() {
-  unsigned long x = init_log_file();
-
-  get_buffer_info(2);
-  printf("consegui %ld\n", x);
-
-  redir_log_file(1);
+  id_pedido = init_log_file();
+  printf("id pedido is %ld\n", id_pedido);
 
   int i;
   unsigned long id = 0;
@@ -89,7 +180,6 @@ int main() {
       printf("\tword %d: %s\n", i, r->argv[i]);
     (*req_dispatch[r->ID])(r->argv);
     printf("##################\n");
-    readapt_log_offset(id);
 
     free(r);
     id++;
