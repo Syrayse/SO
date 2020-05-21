@@ -179,7 +179,13 @@ void setup_dispatcher(DispatchFunc *v) {
 
 
 int main() {
+	// Sinal que e enviado para o processo principal
+	// assim que processos filhos terminam emitem este
+	// sinal ao processo pai, de forma a notificar que
+	// pode atualizar o log_manager, por a informacao de output
+	// do processo filho ja foi inserida.
 	signal(SIGUSR1, update_indexes);
+
   id_pedido = init_log_file();
 
   int i;

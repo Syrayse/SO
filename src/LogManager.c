@@ -43,9 +43,6 @@ ssize_t get_offset_size(unsigned long ID, ssize_t *size) {
   // Volta para o fim
   lseek(log_idx_file, 0, SEEK_END);
 
-  printf("long size is %ld, off_t size is %ld", sizeof(unsigned long), sizeof(off_t));
-  printf("!!! offset is %ld, size is %ld, curr off %ld\n", offset, *size,curr_offset);
-
   return offset;
 }
 
@@ -56,7 +53,7 @@ int redir_log_file(int fd) {
 void readapt_log_offset(unsigned long ID) {
   unsigned long i, N = entry_size();
   off_t newoff = lseek(log_file, 0, SEEK_END);
-  printf("$$ newoff: %ld, log_offset %ld\n", newoff, log_offset);
+
   off_t size = newoff - log_offset;
   ssize_t w, jump, used = 0;
   char buffer[MAX_BUFFER_SIZE],buffer2[MAX_BUFFER_SIZE], c = 0;
@@ -67,7 +64,6 @@ void readapt_log_offset(unsigned long ID) {
   // copy length
   memcpy(buffer + sizeof(unsigned long) + sizeof(off_t), &size, sizeof(off_t));
 
-  printf("!!!id is %ld, num_elems %ld, size is %ld\n", ID, num_elems, size);
   if(ID >= num_elems) {
     // adicionar padding ate a posicao necessaria.
     curr_offset = lseek(log_idx_file, 0, SEEK_END);
@@ -76,8 +72,6 @@ void readapt_log_offset(unsigned long ID) {
       memcpy(buffer2 + i - num_elems, &c, 1);
       used++;
     }
-
-    printf("### USED IS %ld\n", used);
 
     if(used != 0) {
       w = write(log_idx_file, buffer2, used);
@@ -136,10 +130,8 @@ ssize_t get_buffer_info(int fd, unsigned long ID) {
 
   // Escreve no stdout cada MAX_BUFFER_SIZE que encontrar
   // até ao fim.
-  printf("procd is %ld, size is %ld\n", procd, size);
   while(procd < size) {
     step = (size - procd) < MAX_BUFFER_SIZE ? (size - procd) : MAX_BUFFER_SIZE;
-    printf("readingggg\n");
     tmp = read(log_file, strbuff, step);
 
     if(tmp == -1) {
@@ -147,7 +139,6 @@ ssize_t get_buffer_info(int fd, unsigned long ID) {
       return -1;
     }
 
-    printf("writing %ld\n", tmp);
     w = write(fd, strbuff, tmp);
 
     if(w == -1) {
