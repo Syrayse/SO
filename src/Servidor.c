@@ -82,6 +82,11 @@ void process_line(char *str) {
 
 }
 
+void update_indexes(int signum) {
+	readapt_log_offset(id_pedido);
+	id_pedido++;
+}
+
 void process_pipe_timeout(char** argv) {
   //g_pipe_timeout = atoi(argv[0]);
   printf("PIPE TIMEOUT\n");
@@ -96,10 +101,9 @@ void process_exec_task(char** argv) {
   pid_t pid;
   ssize_t n;
   char * str = "";
+
   // Devera executar um novo processo
   // Novo processo serializa task e comunica o respectivo id.
-  throw_error(pipe_writer, argv[0]);
-
   if(!fork()) {
     redir_log_file(1);
 
@@ -111,9 +115,10 @@ void process_exec_task(char** argv) {
     }
     else {
       wait(NULL);
-      readapt_log_offset(id_pedido++);
-      
-      n = asprintf(&str, "nova tarefa #%ld.\n", id_pedido - 1);
+
+			kill(getppid(), SIGUSR1);
+
+      n = asprintf(&str, "nova tarefa #%ld.\n", id_pedido);
 
       if(write(pipe_writer, str, n) == -1)
         throw_error(2, "Erro ao submeter info no pipe.");
@@ -143,6 +148,22 @@ void process_list_history(char** argv) {
 }
 
 void process_spec_output(char** argv) {
+	char * str = "";
+	unsigned long id = strtoul(argv[0],&str,0);
+	ssize_t n;
+
+  // Devera executar um novo processo
+	// Potencialmente o processo original pode ser enorme.
+  if(!fork()) {
+		n = asprintf(&str, "> A enviar output da tarefa %ld.\n", id);
+
+		if( write(1, str, n) == -1)
+			throw_error(2, "Nao conseguiu escrever no output.");
+
+    if( get_buffer_info(pipe_writer, id) == -1)
+			throw_error(2, "Impossivel aceder a informacao dos logs.");
+    _exit(0);
+  }
   // faz coisas
 }
 
@@ -158,11 +179,10 @@ void setup_dispatcher(DispatchFunc *v) {
 
 
 int main() {
+	signal(SIGUSR1, update_indexes);
   id_pedido = init_log_file();
-  printf("id pedido is %ld\n", id_pedido);
 
   int i;
-  unsigned long id = 0;
   pipe_reader = open(CL_TO_SR_PIPE, O_RDONLY);
   pipe_writer = open(SR_TO_CL_PIPE, O_WRONLY);
   ssize_t n;
@@ -171,19 +191,19 @@ int main() {
   DispatchFunc req_dispatch[LIST_HISTORY + 1];
   setup_dispatcher(req_dispatch);
 
-  while( (n = read(pipe_reader, buffer, MAX_BUFFER_SIZE)) > 0 && id < 5 ) {
-    r = deserialize_request(buffer, n);
+	while(1) {
+	  if( (n = read(pipe_reader, buffer, MAX_BUFFER_SIZE)) > 0 ) {
+	    r = deserialize_request(buffer, n);
 
-    printf("##################\n");
-    printf("ID:%d\nnArgs:%d\n",r->ID, r->nArgs);
-    for(i = 0; i < r->nArgs; i++)
-      printf("\tword %d: %s\n", i, r->argv[i]);
-    (*req_dispatch[r->ID])(r->argv);
-    printf("##################\n");
+	    printf("##################\n");
+	    printf("ID:%d\nnArgs:%d\n",r->ID, r->nArgs);
+	    for(i = 0; i < r->nArgs; i++)
+	      printf("\tword %d: %s\n", i, r->argv[i]);
+	    (*req_dispatch[r->ID])(r->argv);
+	    printf("##################\n");
 
-    free(r);
-    id++;
-  }
-
+	    free(r);
+	  }
+	}
   return 0;
 }

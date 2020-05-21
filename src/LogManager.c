@@ -25,17 +25,11 @@ ssize_t get_offset_size(unsigned long ID, ssize_t *size) {
   char * buffer = malloc(sizeof(char) * N);
 
   // Se o ID está acima do EOF.
-  if(dest_off > num_elems * N)
+  if(ID >= num_elems)
     return offset;
 
-  // Caso contrario, esse ID já foi indicado.
-  // e preciso calcular o jump preciso.
-  // se co for 70 e do 60, jump = -10
-  // se co for 60 e do 70, jump = 10.
-  jump = dest_off - curr_offset;
-
   // Saltar ate essa posicao
-  curr_offset = lseek(log_idx_file, jump, SEEK_CUR);
+  lseek(log_idx_file, dest_off, SEEK_SET);
 
   // Le aquela entrada
   w = read(log_idx_file, buffer, N);
@@ -44,7 +38,13 @@ ssize_t get_offset_size(unsigned long ID, ssize_t *size) {
     throw_error(2, "Nao conseguiu ler log file");
 
   offset = *(ssize_t*)(buffer + sizeof(unsigned long));
-  *size = *(ssize_t*)(buffer + N - sizeof(off_t));
+  *size = *(ssize_t*)(buffer + sizeof(unsigned long) + sizeof(off_t));
+
+  // Volta para o fim
+  lseek(log_idx_file, 0, SEEK_END);
+
+  printf("long size is %ld, off_t size is %ld", sizeof(unsigned long), sizeof(off_t));
+  printf("!!! offset is %ld, size is %ld, curr off %ld\n", offset, *size,curr_offset);
 
   return offset;
 }
@@ -56,6 +56,7 @@ int redir_log_file(int fd) {
 void readapt_log_offset(unsigned long ID) {
   unsigned long i, N = entry_size();
   off_t newoff = lseek(log_file, 0, SEEK_END);
+  printf("$$ newoff: %ld, log_offset %ld\n", newoff, log_offset);
   off_t size = newoff - log_offset;
   ssize_t w, jump, used = 0;
   char buffer[MAX_BUFFER_SIZE],buffer2[MAX_BUFFER_SIZE], c = 0;
@@ -66,6 +67,7 @@ void readapt_log_offset(unsigned long ID) {
   // copy length
   memcpy(buffer + sizeof(unsigned long) + sizeof(off_t), &size, sizeof(off_t));
 
+  printf("!!!id is %ld, num_elems %ld, size is %ld\n", ID, num_elems, size);
   if(ID >= num_elems) {
     // adicionar padding ate a posicao necessaria.
     curr_offset = lseek(log_idx_file, 0, SEEK_END);
@@ -75,14 +77,18 @@ void readapt_log_offset(unsigned long ID) {
       used++;
     }
 
-    w = write(log_idx_file, buffer2, used);
+    printf("### USED IS %ld\n", used);
 
-    if(w == -1) {
-      throw_error(2, "Error inesperado na escrita.");
-      return;
+    if(used != 0) {
+      w = write(log_idx_file, buffer2, used);
+
+      if(w == -1) {
+        throw_error(2, "Error inesperado na escrita.");
+        return;
+      }
+
+      curr_offset += w;
     }
-
-    curr_offset += w;
 
     w = write(log_idx_file, buffer, N);
 
@@ -113,16 +119,15 @@ void readapt_log_offset(unsigned long ID) {
   log_offset = lseek(log_file, 0, SEEK_END);
 }
 
-ssize_t get_buffer_info(unsigned long ID) {
+ssize_t get_buffer_info(int fd, unsigned long ID) {
   char strbuff[MAX_BUFFER_SIZE];
   ssize_t w, size, tmp, procd = 0;
   ssize_t offset = get_offset_size(ID, &size);
-
-  printf("id:%ld\toff:%ld\tsize%ld\n", ID, offset, size);
+  ssize_t step;
 
   if(offset == -1) {
     sprintf(strbuff, "Nao existe algum ID %ld na base.", ID);
-    throw_error(2, strbuff);
+    throw_error(fd, strbuff);
     return -1;
   }
 
@@ -131,15 +136,19 @@ ssize_t get_buffer_info(unsigned long ID) {
 
   // Escreve no stdout cada MAX_BUFFER_SIZE que encontrar
   // até ao fim.
+  printf("procd is %ld, size is %ld\n", procd, size);
   while(procd < size) {
-    tmp = read(log_file, strbuff, size);
+    step = (size - procd) < MAX_BUFFER_SIZE ? (size - procd) : MAX_BUFFER_SIZE;
+    printf("readingggg\n");
+    tmp = read(log_file, strbuff, step);
 
     if(tmp == -1) {
       throw_error(2, "Nao conseguiu ler ficheiro de logs.");
       return -1;
     }
 
-    w = write(1, strbuff, tmp);
+    printf("writing %ld\n", tmp);
+    w = write(fd, strbuff, tmp);
 
     if(w == -1) {
       throw_error(2, "Error inesperado na escrita.");
@@ -147,7 +156,7 @@ ssize_t get_buffer_info(unsigned long ID) {
       return size;
     }
 
-    procd += tmp;
+    procd += step;
   }
 
   // Saltar novamente para o fim
