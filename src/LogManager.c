@@ -1,4 +1,5 @@
 #include "LogManager.h"
+#include <stdio.h>
 
 int log_file, log_idx_file;
 off_t curr_offset, log_offset;
@@ -9,8 +10,8 @@ unsigned long entry_size() {
 }
 
 unsigned long init_log_file() {
-  log_file = open(LOG_FILE, O_CREAT | O_RDWR);
-  log_idx_file = open(LOG_IDX_FILE, O_CREAT | O_RDWR);
+  log_file = open(LOG_FILE, O_CREAT | O_RDWR, 0666);
+  log_idx_file = open(LOG_IDX_FILE, O_CREAT | O_RDWR, 0666);
   log_offset = lseek(log_file, 0, SEEK_END);
   curr_offset = lseek(log_idx_file, 0, SEEK_END);
   num_elems = curr_offset / entry_size();
@@ -49,16 +50,76 @@ ssize_t get_offset_size(unsigned long ID, ssize_t *size) {
 }
 
 int redir_log_file(int fd) {
-  return 0;
+  return dup2(log_file, 1);
+}
+
+void readapt_log_offset(unsigned long ID) {
+  unsigned long i, N = entry_size();
+  off_t newoff = lseek(log_file, 0, SEEK_END);
+  off_t size = newoff - log_offset;
+  ssize_t w, jump, used = 0;
+  char buffer[MAX_BUFFER_SIZE],buffer2[MAX_BUFFER_SIZE], c = 0;
+  // copy ID
+  memcpy(buffer, &ID, sizeof(unsigned long));
+  // copy offsets
+  memcpy(buffer + sizeof(unsigned long), &log_offset, sizeof(off_t));
+  // copy length
+  memcpy(buffer + sizeof(unsigned long) + sizeof(off_t), &size, sizeof(off_t));
+
+  if(ID >= num_elems) {
+    // adicionar padding ate a posicao necessaria.
+    curr_offset = lseek(log_idx_file, 0, SEEK_END);
+
+    for(i = num_elems; i < ID; i++) {
+      memcpy(buffer2 + i - num_elems, &c, 1);
+      used++;
+    }
+
+    w = write(log_idx_file, buffer2, used);
+
+    if(w == -1) {
+      throw_error(2, "Error inesperado na escrita.");
+      return;
+    }
+
+    curr_offset += w;
+
+    w = write(log_idx_file, buffer, N);
+
+    if(w == -1) {
+      throw_error(2, "Error inesperado na escrita.");
+      return;
+    }
+
+    num_elems = ID + 1;
+  }
+  else {
+    // Podemos ir a posicao e simplesmente inserir la.
+    jump = ID * N - curr_offset;
+    curr_offset = lseek(log_idx_file, jump, SEEK_CUR);
+
+    w = write(log_idx_file, buffer, N);
+
+    if(w == -1) {
+      throw_error(2, "Error inesperado na escrita.");
+      return;
+    }
+
+  }
+
+  curr_offset += w;
+
+  // De qualquer das formas, volta ao fim.
+  log_offset = lseek(log_file, 0, SEEK_END);
 }
 
 ssize_t get_buffer_info(unsigned long ID) {
-  char *strbuff[MAX_BUFFER_SIZE];
-  ssize_t size, tmp, procd = 0;
+  char strbuff[MAX_BUFFER_SIZE];
+  ssize_t w, size, tmp, procd = 0;
   ssize_t offset = get_offset_size(ID, &size);
 
   if(offset == -1) {
-    sprintf(strbuff, "Nao existe algum ID %ld na base.\n", ID);
+    sprintf(strbuff, "Nao existe algum ID %ld na base.", ID);
     throw_error(2, strbuff);
     return -1;
   }
@@ -69,14 +130,21 @@ ssize_t get_buffer_info(unsigned long ID) {
   // Escreve no stdout cada MAX_BUFFER_SIZE que encontrar
   // até ao fim.
   while(procd < size) {
-    tmp = read(log_file, buffer, MAX_BUFFER_SIZE);
+    tmp = read(log_file, strbuff, MAX_BUFFER_SIZE);
 
     if(tmp == -1) {
-      throw_error(2, "Nao conseguiu ler ficheiro de logs.\n");
+      throw_error(2, "Nao conseguiu ler ficheiro de logs.");
       return -1;
     }
 
-    write(1, buffer, tmp);
+    w = write(1, strbuff, tmp);
+
+    if(w == -1) {
+      throw_error(2, "Error inesperado na escrita.");
+      lseek(log_file, 0, SEEK_END);
+      return size;
+    }
+
     procd += tmp;
   }
 

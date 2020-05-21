@@ -12,12 +12,12 @@
  *
  * @return O ID que atualmente está a ser processado.
  */
-unsigned int init_log_file();
+unsigned long init_log_file();
 
-ssize_t get_offset_size(unsigned int ID, ssize_t *size);
+ssize_t get_offset_size(unsigned long ID, ssize_t *size);
 
 int redir_log_file(int fd);
 
-char * get_buffer_info(unsigned int ID);
+ssize_t get_buffer_info(unsigned long ID);
 
 #endif
