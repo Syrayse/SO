@@ -46,12 +46,17 @@ void process_list_history(char** argv) {
   write(pipe_writer, str, n);
 }
 
+void process_spec_output(char** argv) {
+  // faz coisas
+}
+
 void setup_dispatcher(DispatchFunc *v) {
   v[SET_PIPE_TIMEOUT] = process_pipe_timeout;
   v[SET_EXEC_TIMEOUT] = process_exec_timeout;
   v[EXECUTE_TASK] = process_exec_task;
   v[LIST_IN_EXECUTION] = process_list_execs;
   v[TERMINATE_TASK] = process_kill_task;
+  v[SPEC_OUTPUT] = process_spec_output;
   v[LIST_HISTORY] = process_list_history;
 }
 
@@ -73,29 +78,12 @@ int main() {
     printf("ID:%d\nnArgs:%d\n",r->ID, r->nArgs);
     for(i = 0; i < r->nArgs; i++)
       printf("\tword %d: %s\n", i, r->argv[i]);
+    sleep(5);
     (*req_dispatch[r->ID])(r->argv);
     printf("##################\n");
 
     free(r);
   }
-
-  /*
-  n = read(fd1, buff, MAX_BUFFER_SIZE);
-
-
-
-  printf("ID:%d\nnArgs:%d\n",r->ID, r->nArgs);
-  for(i = 0; i < r->nArgs; i++)
-    printf("\tword %d: %s\n", i, r->argv[i]);
-  */
-  //write()
-
-
-  /*while( (n = read(fd1, buff, MAX_BUFFER_SIZE)) > 0 ) {
-    throw_error(fd2, "i got it");
-    write(1, "GOT: ", 5);
-    write(1, buff, n);
-  }*/
 
   return 0;
 }

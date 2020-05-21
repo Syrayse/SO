@@ -9,6 +9,8 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
+#include <signal.h>
 #include <fcntl.h>
 #include <string.h>
 #include <stdlib.h>
@@ -39,6 +41,7 @@ enum Request {
   EXECUTE_TASK,
   LIST_IN_EXECUTION,
   TERMINATE_TASK,
+  SPEC_OUTPUT,
   LIST_HISTORY
 };
 

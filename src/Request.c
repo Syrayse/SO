@@ -2,6 +2,21 @@
 #include "Request.h"
 #include <stdio.h>
 
+Request request_geneic(unsigned int ID, char **argv, unsigned int length) {
+  unsigned int i;
+  Request request = malloc(sizeof(struct request));
+
+  request->ID = ID;
+  request->nArgs = length;
+  request->argv = malloc(sizeof(char*) * length);
+
+  for(i = 0; i < length; i++) {
+    request->argv[i] = strdup(argv[i]);
+  }
+
+  return request;
+}
+
 char* serialize_request(Request request, ssize_t *length) {
   int i;
   ssize_t byte_size = 0, used = 0;
@@ -109,4 +124,32 @@ Request deserialize_request(char* buffer, ssize_t length) {
   }
 
   return request;
+}
+
+Request request_pipe_timeout(char **argv, unsigned int length) {
+  return request_geneic(SET_PIPE_TIMEOUT, argv, length);
+}
+
+Request request_exec_timeout(char **argv, unsigned int length) {
+  return request_geneic(SET_EXEC_TIMEOUT, argv, length);
+}
+
+Request request_execute_task(char **argv, unsigned int length) {
+  return request_geneic(EXECUTE_TASK, argv, length);
+}
+
+Request request_list_execution(char **argv, unsigned int length) {
+  return request_geneic(LIST_IN_EXECUTION, argv, length);
+}
+
+Request request_kill_task(char **argv, unsigned int length) {
+  return request_geneic(TERMINATE_TASK, argv, length);
+}
+
+Request request_list_history(char **argv, unsigned int length) {
+  return request_geneic(LIST_HISTORY, argv, length);
+}
+
+Request request_spec_output(char **argv, unsigned int length) {
+  return request_geneic(SPEC_OUTPUT, argv, length);
 }
