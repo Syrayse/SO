@@ -176,7 +176,7 @@ void readapt_log_offset(unsigned long ID) {
 }
 
 ssize_t get_buffer_info(int fd, unsigned long ID) {
-  char strbuff[MAX_BUFFER_SIZE];
+  char strbuff[MAX_BUFFER_SIZE], c = '\0';
   ssize_t w, size, tmp, procd = 0;
   ssize_t offset = get_offset_size(ID, &size);
   ssize_t step;
@@ -192,6 +192,15 @@ ssize_t get_buffer_info(int fd, unsigned long ID) {
 
   // Escreve no stdout cada MAX_BUFFER_SIZE que encontrar
   // até ao fim.
+
+  if(size == 0) {
+    if(write(fd, &c, 1) == -1) {
+      throw_error(2, "Error inesperado na escrita.");
+      lseek(log_file, 0, SEEK_END);
+      return size;
+    }
+  }
+
   while(procd < size) {
     step = (size - procd) < MAX_BUFFER_SIZE ? (size - procd) : MAX_BUFFER_SIZE;
     tmp = read(log_file, strbuff, step);

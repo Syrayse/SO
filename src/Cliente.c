@@ -168,7 +168,7 @@ int main(int argc, char *argv[]) {
   son = fork();
   if( !son ) {
     while( read_server &&
-        (n = read(pipe_reader, buff, MAX_BUFFER_SIZE)) > 0) {
+        (n = read(pipe_reader, buff, MAX_BUFFER_SIZE)) >= 0) {
       d = write(1, buff, n);
 
       if(d == -1)

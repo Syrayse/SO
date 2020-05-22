@@ -58,9 +58,10 @@ int run(char * argv, int in, int out) {
 
     // Para ja isto chega para testes, mas depois tenho de fazer
     // a minha propria funcao.
-  	r = system(argv);
+		r = execl("/bin/sh", "sh", "-c", argv, (char *) 0);
+		_exit(1);
 
-  	_exit(0);
+  	//_exit(-2);
 
 		return r;
 }
@@ -147,13 +148,14 @@ void process_exec_task(char** argv) {
   // Novo processo serializa task e comunica o respectivo id.
 	m = fork();
 	if(!m) {
+		setpgrp();
     redir_log_file(1);
 
     pid = fork();
 
     if(!pid) {
       status = process_line(argv[0]);
-      _exit(status);
+      _exit(status == -1 ? 1 : 0);
     }
     else {
 			n = asprintf(&str, "nova tarefa #%ld.\n", id_pedido);
@@ -161,11 +163,11 @@ void process_exec_task(char** argv) {
       if(write(pipe_writer, str, n) == -1)
         throw_error(2, "Erro ao submeter info no pipe.");
 
+      waitpid(pid, &status, WUNTRACED);
+
 			kill(getppid(), SIGUSR1);
 
-      wait(&status);
-
-			if(status != 0) {
+			if(WEXITSTATUS(status) != 0) {
 				c = COMMAND_ERROR;
 			}
 
@@ -213,7 +215,7 @@ void process_kill_task(char** argv) {
   else {
     // Aquele pedido está contido na hash
     // table, deve por isso ser morto e removido.
-    kill(info->care_taker, SIGKILL);
+    kill(-info->care_taker, SIGKILL);
     hash_table_remove(table, id);
 
     // Para alem disso, e tambem preciso
@@ -246,8 +248,9 @@ void process_spec_output(char** argv) {
 		if( write(1, str, n) == -1)
 			throw_error(2, "Nao conseguiu escrever no output.");
 
-    if( get_buffer_info(pipe_writer, id) == -1)
+    if( (n = get_buffer_info(pipe_writer, id)) == -1)
 			throw_error(2, "Impossivel aceder a informacao dos logs.");
+
     _exit(0);
   }
 }
