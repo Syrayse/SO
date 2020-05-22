@@ -59,7 +59,7 @@ unsigned long init_log_file() {
 }
 
 ssize_t dump_task_history(int fd) {
-  char buffer[MAX_BUFFER_SIZE];
+  char buffer[MAX_BUFFER_SIZE], c = '\0';
   // Coloca fd no inicio do ficheiro de historico
   // Isto porque, temos que imaginar, que tambem
   // existe um processo que escreve neste.
@@ -75,6 +75,11 @@ ssize_t dump_task_history(int fd) {
       return -1;
     }
     acm += nread;
+  }
+
+  if(!acm) {
+    if( write(fd, &c, 1) == -1)
+      throw_error(2, "erro na escrita.");
   }
   // Aqui o ficheiro ja esta no EOF.
   return acm;

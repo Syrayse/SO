@@ -194,7 +194,12 @@ void process_exec_task(char** argv) {
 }
 
 void process_list_execs(char** argv) {
+	char c = '\0';
+
   hash_table_foreach(table, foreach_task);
+
+	if( write(pipe_writer, &c, 1) == -1 )
+		throw_error(2, "Erro inesperado na escrita.");
 }
 
 void process_kill_task(char** argv) {
@@ -259,10 +264,10 @@ void setup_dispatcher(DispatchFunc *v) {
   v[SET_PIPE_TIMEOUT] = process_pipe_timeout;		// Ta feito
   v[SET_EXEC_TIMEOUT] = process_exec_timeout;		// Ta feito
   v[EXECUTE_TASK] = process_exec_task;					// Ta feito
-  v[LIST_IN_EXECUTION] = process_list_execs;
-  v[TERMINATE_TASK] = process_kill_task;
+  v[LIST_IN_EXECUTION] = process_list_execs;		// Ta feito
+  v[TERMINATE_TASK] = process_kill_task;				// Ta feito
   v[SPEC_OUTPUT] = process_spec_output;					// Ta feito
-  v[LIST_HISTORY] = process_list_history;
+  v[LIST_HISTORY] = process_list_history;				// Ta feito
 }
 
 

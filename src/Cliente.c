@@ -4,6 +4,7 @@
 #include "LogManager.h"
 
 int pipe_reader, pipe_writer, read_server = 1;
+pid_t son;
 
 void dont_read_server(int signum) {
   read_server = 0;
@@ -144,6 +145,8 @@ void parse_arguments(int argc, char *argv[]) {
     if(d == -1)
       throw_error(2, "Impossivel escrever no output.");
 
+    kill(son, SIGKILL);
+
     allok = 1;
   }
 
@@ -156,7 +159,6 @@ void parse_arguments(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
-  pid_t son;
   pipe_writer = open(CL_TO_SR_PIPE, O_WRONLY);
   pipe_reader = open(SR_TO_CL_PIPE, O_RDONLY);
   signal(SIGUSR1, dont_read_server);
