@@ -88,13 +88,11 @@ void update_indexes(int signum) {
 }
 
 void process_pipe_timeout(char** argv) {
-  //g_pipe_timeout = atoi(argv[0]);
-  printf("PIPE TIMEOUT\n");
+  g_pipe_timeout = atoi(argv[0]);
 }
 
 void process_exec_timeout(char** argv) {
-  //g_exec_timeout = atoi(argv[0]);
-  printf("EXEC TIMEOUT\n");
+  g_exec_timeout = atoi(argv[0]);
 }
 
 void process_exec_task(char** argv) {
@@ -114,14 +112,14 @@ void process_exec_task(char** argv) {
       _exit(0);
     }
     else {
-      wait(NULL);
-
-			kill(getppid(), SIGUSR1);
-
-      n = asprintf(&str, "nova tarefa #%ld.\n", id_pedido);
+			n = asprintf(&str, "nova tarefa #%ld.\n", id_pedido);
 
       if(write(pipe_writer, str, n) == -1)
         throw_error(2, "Erro ao submeter info no pipe.");
+
+      wait(NULL);
+
+			kill(getppid(), SIGUSR1);
     }
 
     _exit(0);
@@ -164,16 +162,15 @@ void process_spec_output(char** argv) {
 			throw_error(2, "Impossivel aceder a informacao dos logs.");
     _exit(0);
   }
-  // faz coisas
 }
 
 void setup_dispatcher(DispatchFunc *v) {
-  v[SET_PIPE_TIMEOUT] = process_pipe_timeout;
-  v[SET_EXEC_TIMEOUT] = process_exec_timeout;
-  v[EXECUTE_TASK] = process_exec_task;
+  v[SET_PIPE_TIMEOUT] = process_pipe_timeout;		// Ta feito
+  v[SET_EXEC_TIMEOUT] = process_exec_timeout;		// Ta feito
+  v[EXECUTE_TASK] = process_exec_task;					// Ta feito
   v[LIST_IN_EXECUTION] = process_list_execs;
   v[TERMINATE_TASK] = process_kill_task;
-  v[SPEC_OUTPUT] = process_spec_output;
+  v[SPEC_OUTPUT] = process_spec_output;					// Ta feito
   v[LIST_HISTORY] = process_list_history;
 }
 
