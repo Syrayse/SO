@@ -109,6 +109,19 @@ int hash_table_remove(HashTable table, unsigned long key) {
   return r;
 }
 
+void hash_table_foreach(HashTable table, ForeachFunc feach) {
+  List it;
+  int i;
+  if(feach) {
+    for(i = 0; i < MAX_SIZE; i++) {
+
+      for(it = table->table[i]; it; it = it->next)
+        (*feach)(it->key, it->entry);
+
+    }
+  }
+}
+
 void destroy_hash_table(HashTable table) {
   int i;
   List t,tmp;

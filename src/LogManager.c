@@ -1,7 +1,7 @@
 #include "LogManager.h"
 #include <stdio.h>
 
-int log_file, log_idx_file;
+int log_file, log_idx_file, histd;
 off_t curr_offset, log_offset;
 unsigned long num_elems;
 
@@ -9,19 +9,81 @@ unsigned long entry_size() {
   return (sizeof(unsigned long) + sizeof(off_t) + sizeof(off_t));
 }
 
+ssize_t append_task_info(unsigned long key, char *task,
+            enum Command term) {
+  // Pelo codigo acima, o histd esta sempre no final do
+  // ficheiro, logo, e so escrever esta informação, consoante o erro.
+  // Primeiro precisamos de encontrar o tipo.
+  // Assume que existe um array que armazena as mensagens associadas
+  // a cada um dos erros.
+  char buffer[100] = "";
+  char *wb;
+
+  switch(term) {
+    case COMMAND_SUCESS:
+      strcpy(buffer, "concluida");
+      break;
+    case COMMAND_ERROR:
+      strcpy(buffer, "erro inesperado");
+      break;
+    case COMMAND_TERMINATED:
+      strcpy(buffer, "morto");
+      break;
+    case COMMAND_EXEC_TIMEOUT:
+      strcpy(buffer, "max inactividade");
+      break;
+    case COMMAND_PIPE_TIMEOUT:
+      strcpy(buffer, "max execucao");
+      break;
+  }
+
+  ssize_t n = asprintf(&wb, "#%ld, %s: %s\n", key, buffer, task);
+
+  if( write(histd, wb, n) == -1) {
+    throw_error(2, "Erro inesperado na escrita." );
+    return -1;
+  }
+
+  return n;
+}
+
 unsigned long init_log_file() {
   log_file = open(LOG_FILE, O_CREAT | O_RDWR, 0666);
   log_idx_file = open(LOG_IDX_FILE, O_CREAT | O_RDWR, 0666);
+  histd = open(COMM_LOG_FILE, O_CREAT | O_RDWR, 0666);
   log_offset = lseek(log_file, 0, SEEK_END);
   curr_offset = lseek(log_idx_file, 0, SEEK_END);
+  lseek(histd, 0, SEEK_END);
   num_elems = curr_offset / entry_size();
   return num_elems;
+}
+
+ssize_t dump_task_history(int fd) {
+  char buffer[MAX_BUFFER_SIZE];
+  // Coloca fd no inicio do ficheiro de historico
+  // Isto porque, temos que imaginar, que tambem
+  // existe um processo que escreve neste.
+  lseek(histd, 0, SEEK_SET);
+  ssize_t nread, acm = 0;
+
+  while( (nread = read(histd,
+      buffer, MAX_BUFFER_SIZE) ) > 0 ) {
+    if( write(fd, buffer, nread) == -1) {
+      // Em caso de erro, voltar a por o fd no fim
+      // do ficheiro.
+      lseek(histd, 0, SEEK_END);
+      return -1;
+    }
+    acm += nread;
+  }
+  // Aqui o ficheiro ja esta no EOF.
+  return acm;
 }
 
 ssize_t get_offset_size(unsigned long ID, ssize_t *size) {
   ssize_t w, offset = -1;
   unsigned long N = entry_size();
-  off_t jump, dest_off = ID * N;
+  off_t dest_off = ID * N;
   char * buffer = malloc(sizeof(char) * N);
 
   // Se o ID está acima do EOF.

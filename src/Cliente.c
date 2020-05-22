@@ -44,7 +44,7 @@ void parse_shell() {
 
     char * buffer = serialize_request(r, &n);
 
-    write(pipe_writer, buffer, n);
+    n = write(pipe_writer, buffer, n);
 
     free(buffer);
     sleep(1);
@@ -162,7 +162,6 @@ int main(int argc, char *argv[]) {
   signal(SIGUSR1, dont_read_server);
 
   ssize_t n, d;
-  unsigned long used = 0;
   char buff[MAX_BUFFER_SIZE];
 
   /* Um dos forks fica sempre a imprimir o que o provem do servidor. */
