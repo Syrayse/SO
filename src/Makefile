@@ -5,7 +5,7 @@ CFLAGS = -Wall -g -Ofast -I$(IDIR)
 
 DEPS=$(IDIR)/$(wildcard *.h)
 
-SOURCES_OBJ=Common.o Request.o LogManager.o
+SOURCES_OBJ=Common.o Request.o LogManager.o HashTable.o
 
 %.o : %.c $(DEPS)
 		$(CC) $(CFLAGS) -c -o $@ $<

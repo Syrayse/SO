@@ -4,6 +4,7 @@
 #include "LogManager.h"
 
 int pipe_reader, pipe_writer, read_server = 1;
+pid_t son;
 
 void dont_read_server(int signum) {
   read_server = 0;
@@ -151,6 +152,8 @@ void parse_arguments(int argc, char *argv[]) {
     if(d == -1)
       throw_error(2, "Impossivel escrever no output.");
 
+    kill(son, SIGKILL);
+
     allok = 1;
   }
 
@@ -163,20 +166,18 @@ void parse_arguments(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
-  pid_t son;
   pipe_writer = open(CL_TO_SR_PIPE, O_WRONLY);
   pipe_reader = open(SR_TO_CL_PIPE, O_RDONLY);
   signal(SIGUSR1, dont_read_server);
 
   ssize_t n, d;
-  unsigned long used = 0;
   char buff[MAX_BUFFER_SIZE];
 
   /* Um dos forks fica sempre a imprimir o que o provem do servidor. */
   son = fork();
   if( !son ) {
     while( read_server &&
-        (n = read(pipe_reader, buff, MAX_BUFFER_SIZE)) > 0) {
+        (n = read(pipe_reader, buff, MAX_BUFFER_SIZE)) >= 0) {
       d = write(1, buff, n);
 
       if(d == -1)

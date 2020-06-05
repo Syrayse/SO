@@ -1,6 +1,7 @@
 #include "Common.h"
 #include "Request.h"
 #include "LogManager.h"
+#include "HashTable.h"
 #include <stdio.h>
 
 #define BASE_PIPE_TIMEOUT 10
@@ -8,10 +9,40 @@
 
 typedef void (*DispatchFunc)(char**);
 
+typedef struct taskinfo {
+	pid_t care_taker;
+	char *command;
+}*TaskInfo;
+
 unsigned int g_pipe_timeout = BASE_PIPE_TIMEOUT;
 unsigned int g_exec_timeout = BASE_EXEC_TIMEOUT;
-int pipe_reader, pipe_writer;
+int pipe_reader, pipe_writer, terminate_pipe[2];
 unsigned long id_pedido;
+HashTable table;
+
+void process_termination(int signum) {
+	unsigned long id;
+
+	close(terminate_pipe[1]);
+
+	if( read(terminate_pipe[0],&id,
+				sizeof(unsigned long)) == -1 ) {
+		throw_error(2, "error ao ler do pipe.");
+		return;
+	}
+
+	close(terminate_pipe[0]);
+	hash_table_remove(table, id);
+}
+
+void foreach_task(unsigned long key, void *value) {
+	char *buff = "";
+	TaskInfo ti = (TaskInfo)value;
+	ssize_t n = asprintf(&buff,"#%ld: %s\n", key, ti->command);
+
+	if(n && write(pipe_writer, buff, n) == -1)
+		throw_error(2, "Erro na escrita com foreach.");
+}
 
 void redirect(int oldfd, int newfd) {
 	if(oldfd != newfd) {
@@ -20,33 +51,41 @@ void redirect(int oldfd, int newfd) {
 	}
 }
 
-void run(char * argv, int in, int out) {
+int run(char * argv, int in, int out) {
+		int r = 0;
   	redirect(in, STDIN_FILENO);
   	redirect(out, STDOUT_FILENO);
 
     // Para ja isto chega para testes, mas depois tenho de fazer
     // a minha propria funcao.
-  	if( system(argv) == -1)
-      throw_error(2, "Erro a executar commando.");
+		r = execl("/bin/sh", "sh", "-c", argv, (char *) 0);
+		_exit(1);
 
-  	_exit(0);
+  	//_exit(-2);
+
+		return r;
 }
 
-void pipe_process(char *command[], int n) {
-
+int pipe_process(char *command[], int n) {
+		int nd = 0;
   	int i = 0, in = STDIN_FILENO;
   	for ( ; i < (n-1); ++i) {
 	    int fd[2];
     	pid_t pid;
 
-  		if( pipe(fd) == -1)
+  		if( pipe(fd) == -1) {
         throw_error(2, "Erro ao criar pipes.");
+				return -1;
+			}
 
   		pid = fork();
 
     	if (pid == 0) {
       		close(fd[0]);
-      		run(command[i], in, fd[1]);
+      		nd = run(command[i], in, fd[1]);
+
+					if(nd == -1)
+						return -1;
     	}
     	else if (pid > 0) {
       		close(fd[1]);
@@ -55,15 +94,16 @@ void pipe_process(char *command[], int n) {
     	}
       else {
         throw_error(2, "Erro a executar comando.");
-        return;
+        return -1;
       }
   	}
 
-  	run(command[i], in, STDOUT_FILENO);
+  	nd = run(command[i], in, STDOUT_FILENO);
+		return nd;
 }
 
-void process_line(char *str) {
-	int i, N = 0;
+int process_line(char *str) {
+	int t, i, N = 0;
 	char **command = malloc(sizeof(char*)*10);
 	char *token = strtok(str, "|");
 
@@ -72,14 +112,14 @@ void process_line(char *str) {
 		token = strtok(NULL,"|");
 	}
 
-	pipe_process(command, N);
+	t = pipe_process(command, N);
 
 	for(i = 0; i < N; i++) {
 		free(command[i]);
 	}
 
 	free(command);
-
+	return t;
 }
 
 void update_indexes(int signum) {
@@ -88,63 +128,116 @@ void update_indexes(int signum) {
 }
 
 void process_pipe_timeout(char** argv) {
-  //g_pipe_timeout = atoi(argv[0]);
-  printf("PIPE TIMEOUT\n");
+  g_pipe_timeout = atoi(argv[0]);
 }
 
 void process_exec_timeout(char** argv) {
-  //g_exec_timeout = atoi(argv[0]);
-  printf("EXEC TIMEOUT\n");
+  g_exec_timeout = atoi(argv[0]);
 }
 
 void process_exec_task(char** argv) {
-  pid_t pid;
+  pid_t m, pid;
   ssize_t n;
+	int status;
   char * str = "";
+	if( pipe(terminate_pipe) == -1)
+		throw_error(2, "error a criar pipe anonimo.");
+	enum Command c = COMMAND_SUCESS;
 
   // Devera executar um novo processo
   // Novo processo serializa task e comunica o respectivo id.
-  if(!fork()) {
+	m = fork();
+	if(!m) {
+		setpgrp();
     redir_log_file(1);
 
     pid = fork();
 
     if(!pid) {
-      process_line(argv[0]);
-      _exit(0);
+      status = process_line(argv[0]);
+      _exit(status == -1 ? 1 : 0);
     }
     else {
-      wait(NULL);
-
-			kill(getppid(), SIGUSR1);
-
-      n = asprintf(&str, "nova tarefa #%ld.\n", id_pedido);
+			n = asprintf(&str, "nova tarefa #%ld.\n", id_pedido);
 
       if(write(pipe_writer, str, n) == -1)
         throw_error(2, "Erro ao submeter info no pipe.");
+
+      waitpid(pid, &status, WUNTRACED);
+
+			kill(getppid(), SIGUSR1);
+
+			if(WEXITSTATUS(status) != 0) {
+				c = COMMAND_ERROR;
+			}
+
+			append_task_info(id_pedido, argv[0], c);
+
+			kill(getppid(), SIGUSR2);
+
+			close(terminate_pipe[0]);
+
+			if( write(terminate_pipe[1], &id_pedido,
+							sizeof(unsigned long)) == -1 )
+				throw_error(2, "error na escrita do pipe.");
+
+			close(terminate_pipe[1]);
     }
 
     _exit(0);
   }
+
+	TaskInfo ti = malloc(sizeof(struct taskinfo));
+	ti->care_taker = m;
+	ti->command = strdup(argv[0]);
+	hash_table_insert(table, id_pedido, ti);
 }
 
 void process_list_execs(char** argv) {
-  // Criar novo processo
-  // Processo comunica tasks em aberto.
-  printf("list execs\n");
+	char c = '\0';
+
+  hash_table_foreach(table, foreach_task);
+
+	if( write(pipe_writer, &c, 1) == -1 )
+		throw_error(2, "Erro inesperado na escrita.");
 }
 
 void process_kill_task(char** argv) {
-  // Envia um SIGKILL a uma task.
-  // Assinala comando como COMMAND_TERMINATED
-  printf("kill task\n");
+	char * str = "";
+	unsigned long id = strtoul(argv[0],&str,0);
+  TaskInfo info = hash_table_find(table, id);
+	ssize_t n;
+
+  if(info == NULL) {
+    // Aquele id nao esta em execucao,
+    // envia msg a notificar
+    n = asprintf(&str,
+          "A tarefa %ld nao esta em execucao.\n", id);
+
+    if( write(pipe_writer, str, n) == -1 )
+      throw_error(2, "Erro inesperado na escrita.");
+  }
+  else {
+    // Aquele pedido está contido na hash
+    // table, deve por isso ser morto e removido.
+    kill(-info->care_taker, SIGKILL);
+    hash_table_remove(table, id);
+
+    // Para alem disso, e tambem preciso
+    // inserir nos logs a causa da sua morte.
+    append_task_info(id, info->command,
+                        COMMAND_TERMINATED);
+
+		n = asprintf(&str,
+          "A tarefa %ld assassinada!\n", id);
+
+    if( write(pipe_writer, str, n) == -1 )
+      throw_error(2, "Erro inesperado na escrita.");
+  }
 }
 
 void process_list_history(char** argv) {
-  char* str = "";
-  // Faz dump do processo de historico.
-  ssize_t n = asprintf(&str, "the list is here sire\n");
-  write(pipe_writer, str, n);
+  dump_task_history(pipe_writer);
 }
 
 void process_spec_output(char** argv) {
@@ -160,31 +253,33 @@ void process_spec_output(char** argv) {
 		if( write(1, str, n) == -1)
 			throw_error(2, "Nao conseguiu escrever no output.");
 
-    if( get_buffer_info(pipe_writer, id) == -1)
+    if( (n = get_buffer_info(pipe_writer, id)) == -1)
 			throw_error(2, "Impossivel aceder a informacao dos logs.");
+
     _exit(0);
   }
-  // faz coisas
 }
 
 void setup_dispatcher(DispatchFunc *v) {
-  v[SET_PIPE_TIMEOUT] = process_pipe_timeout;
-  v[SET_EXEC_TIMEOUT] = process_exec_timeout;
-  v[EXECUTE_TASK] = process_exec_task;
-  v[LIST_IN_EXECUTION] = process_list_execs;
-  v[TERMINATE_TASK] = process_kill_task;
-  v[SPEC_OUTPUT] = process_spec_output;
-  v[LIST_HISTORY] = process_list_history;
+  v[SET_PIPE_TIMEOUT] = process_pipe_timeout;		// Ta feito
+  v[SET_EXEC_TIMEOUT] = process_exec_timeout;		// Ta feito
+  v[EXECUTE_TASK] = process_exec_task;					// Ta feito
+  v[LIST_IN_EXECUTION] = process_list_execs;		// Ta feito
+  v[TERMINATE_TASK] = process_kill_task;				// Ta feito
+  v[SPEC_OUTPUT] = process_spec_output;					// Ta feito
+  v[LIST_HISTORY] = process_list_history;				// Ta feito
 }
 
 
 int main() {
+	table = hash_table_new(free);
 	// Sinal que e enviado para o processo principal
 	// assim que processos filhos terminam emitem este
 	// sinal ao processo pai, de forma a notificar que
 	// pode atualizar o log_manager, por a informacao de output
 	// do processo filho ja foi inserida.
 	signal(SIGUSR1, update_indexes);
+	signal(SIGUSR2, process_termination);
 
   id_pedido = init_log_file();
 
@@ -211,5 +306,8 @@ int main() {
 	    free(r);
 	  }
 	}
+
+	destroy_hash_table(table);
+
   return 0;
 }
