@@ -27,7 +27,6 @@ char* serialize_request(Request request, ssize_t *length) {
   /* Se ha nArgs, há nArgs offsets */
   ssize_t *offsets = malloc(sizeof(ssize_t) * request->nArgs);
   unsigned int *lens = malloc(sizeof(unsigned int) * request->nArgs);
-
   /* Calcula os offsets primeiro */
   if(request->nArgs > 0) {
     offsets[0] = 0;
@@ -41,7 +40,6 @@ char* serialize_request(Request request, ssize_t *length) {
     lens[i - 1] = strlen(request->argv[i - 1]);
     byte_size += lens[i - 1];
   }
-
   /* Add overhead */
   byte_size += 2 * sizeof(unsigned int)
                   + request->nArgs * sizeof(ssize_t);
@@ -63,7 +61,6 @@ char* serialize_request(Request request, ssize_t *length) {
     memcpy(buffer + used, request->argv[i], lens[i]);
     used += lens[i];
   }
-
   free(offsets);
 
   *length = byte_size ;

@@ -30,30 +30,8 @@ void deliver_request(Request request) {
   free(request);
 }
 
-void parse_shell() {
-  int i, N;
-  ssize_t n;
-  while(1) {
-    N = rand() % 5;
-    Request r = malloc(sizeof(struct request));
-    r->ID = N;
-    r->nArgs = N;
-    r->argv = malloc(sizeof(char*)*N);
-    for(i = 0; i < N; i++) {
-      r->argv[i] = strdup("100");
-    }
-
-    char * buffer = serialize_request(r, &n);
-
-    n = write(pipe_writer, buffer, n);
-
-    free(buffer);
-    sleep(1);
-  }
-}
-
-void parse_shell_inputs(int argc, char *argv[]) {
-  int allok = 0;
+int parse_shell_inputs(int argc, char *argv[]) {
+  int allok = 0, r = 0;
   ssize_t n, d;
   Request request = NULL;
   char * buff = "";
@@ -95,6 +73,10 @@ void parse_shell_inputs(int argc, char *argv[]) {
 
     allok = 1;
   }
+  else if (!strcmp(argv[0], "quit")) {
+    r = 1;
+    allok = 1;
+  }
 
   if(!allok) {
     throw_error(2, "Numero de argumentos invalido.");
@@ -102,7 +84,32 @@ void parse_shell_inputs(int argc, char *argv[]) {
   else if( request ) {
     deliver_request(request);
   }
+  return r;
 }
+
+void parse_shell() {
+  int i = 0;
+  ssize_t n;
+  char *buffer[4];
+  for(int i = 0; i < 4; i++)
+    buffer[i] = malloc(sizeof(char)*100);
+  char* token = NULL;
+  while(i != 1) {
+    char aux_buffer[100];
+    if ((n = readln(0, aux_buffer, 100)) > 0) {
+      token = strtok(aux_buffer, " ");
+      int size = 0;
+      while(token) {
+        strcpy(buffer[size], token);
+        token = strtok(NULL, " ");
+        size++;;
+      }
+      buffer[size] = NULL;
+      i = parse_shell_inputs(size, buffer); 
+    }
+  }
+  close(pipe_writer);
+ }
 
 void parse_arguments(int argc, char *argv[]) {
   int allok = 0;
@@ -193,7 +200,6 @@ int main(int argc, char *argv[]) {
   // Notifica a thread filha que deverá terminar assim que receber a resposta
   // seguinte do servidor. Devemos fazer isto para evitar terminar a execucao do
   // argus sem antes de obter uma resposta do servidor.
-
   d = kill(son, SIGUSR1);
 
   if(d == -1)
