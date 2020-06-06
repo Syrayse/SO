@@ -103,11 +103,8 @@ void parse_shell() {
     if ((n = readln(0, aux_buffer, MAX_BUFFER_SIZE)) > 0) {
       tokens = specialized_tok(aux_buffer, &size);
 
-      for(j = 0; j < size; j++) {
-            printf("%s\n", tokens[j]);
-      }
-
       i = parse_shell_inputs(size, tokens);
+      sleep(1);
     }
   }
   close(pipe_writer);
