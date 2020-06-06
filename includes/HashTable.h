@@ -5,7 +5,7 @@ typedef void (*DestroyFunc)(void*);
 
 typedef void (*ForeachFunc)(unsigned long, void*);
 
-typedef struct hash_table *HashTable;
+typedef struct hash_table* HashTable;
 
 HashTable hash_table_new(DestroyFunc free_func);
 
