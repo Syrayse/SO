@@ -84,28 +84,30 @@ int parse_shell_inputs(int argc, char *argv[]) {
   else if( request ) {
     deliver_request(request);
   }
+
   return r;
 }
 
 void parse_shell() {
-  int i = 0;
+  int i = 0,j, size;
   ssize_t n;
-  char *buffer[4];
-  for(int i = 0; i < 4; i++)
-    buffer[i] = malloc(sizeof(char)*100);
-  char* token = NULL;
+
+  char **tokens;
+
   while(i != 1) {
-    char aux_buffer[100];
-    if ((n = readln(0, aux_buffer, 100)) > 0) {
-      token = strtok(aux_buffer, " ");
-      int size = 0;
-      while(token) {
-        strcpy(buffer[size], token);
-        token = strtok(NULL, " ");
-        size++;;
+    char aux_buffer[MAX_BUFFER_SIZE];
+
+    if( write(1, "> ", 2) == -1)
+      throw_error(2, "Erro na escrita");
+
+    if ((n = readln(0, aux_buffer, MAX_BUFFER_SIZE)) > 0) {
+      tokens = specialized_tok(aux_buffer, &size);
+
+      for(j = 0; j < size; j++) {
+            printf("%s\n", tokens[j]);
       }
-      buffer[size] = NULL;
-      i = parse_shell_inputs(size, buffer); 
+
+      i = parse_shell_inputs(size, tokens);
     }
   }
   close(pipe_writer);

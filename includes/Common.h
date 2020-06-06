@@ -57,5 +57,7 @@ enum Command {
 };
 
 void throw_error(int fd, char * msg);
+ssize_t readln(int fd, char* line, size_t size);
+char **specialized_tok(char * line, int *final_size);
 
 #endif
