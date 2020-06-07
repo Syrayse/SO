@@ -78,6 +78,8 @@ int parse_shell_inputs(int argc, char* argv[])
         deliver_request(request);
     }
 
+    usleep(100*1000);
+
     return r;
 }
 
@@ -98,9 +100,12 @@ void parse_shell()
             tokens = specialized_tok(aux_buffer, &size);
 
             i = parse_shell_inputs(size, tokens);
-            sleep(1);
         }
     }
+
+    // diz ao filho para parar de ler do server.
+    kill(son, SIGTERM);
+
     close(pipe_writer);
 }
 
