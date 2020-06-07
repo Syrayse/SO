@@ -219,16 +219,11 @@ void process_kill_task(char** argv)
     char* str = "";
     unsigned long id = strtoul(argv[0], &str, 0);
     TaskInfo info = hash_table_find(table, id);
-    ssize_t n;
 
     if (info == NULL) {
         // Aquele id nao esta em execucao,
         // envia msg a notificar
-        n = asprintf(&str,
-            "A tarefa %ld nao esta em execucao.\n", id);
-
-        if (write(pipe_writer, str, n) == -1)
-            throw_error(2, "Erro inesperado na escrita.");
+        send_response(pipe_writer, response_task_nen_exec(id));
     } else {
         // Aquele pedido está contido na hash
         // table, deve por isso ser morto e removido.
@@ -240,11 +235,7 @@ void process_kill_task(char** argv)
         append_task_info(id, info->command,
             COMMAND_TERMINATED);
 
-        n = asprintf(&str,
-            "A tarefa %ld assassinada!\n", id);
-
-        if (write(pipe_writer, str, n) == -1)
-            throw_error(2, "Erro inesperado na escrita.");
+        send_response(pipe_writer, response_task_killed(id));
     }
 }
 

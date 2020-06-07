@@ -15,7 +15,7 @@ Response response_generic(unsigned long ID, unsigned long id_task,
 
 char* serialize_response(Response response, ssize_t* length) {
       char *buffer = NULL;
-      unsigned long sz;
+      unsigned long sz = 0;
 
       if(response->ID == ECHO) {
             sz = sizeof(unsigned long) + sizeof(ssize_t) + response->length;
@@ -32,9 +32,15 @@ char* serialize_response(Response response, ssize_t* length) {
       } else {
             sz = sizeof(unsigned long)*2;
             buffer = malloc(sizeof(char) * sz);
+
+            // Insere ID
+            memcpy(buffer, &(response->ID), sizeof(unsigned long));
+
+            // Insere id_task
+            memcpy(buffer + sizeof(unsigned long), &(response->id_task), sizeof(unsigned long));
       }
 
-      *length = response->length;
+      *length = sz;
 
       return buffer;
 }

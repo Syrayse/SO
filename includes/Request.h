@@ -1,5 +1,5 @@
-#ifndef _REQUEST_SO_
-#define _REQUEST_SO_
+#ifndef _RESPONSE_SO_
+#define _RESPONSE_SO_
 
 #include <sys/types.h>
 

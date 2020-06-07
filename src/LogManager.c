@@ -63,22 +63,30 @@ unsigned long init_log_file()
 
 ssize_t dump_task_history(int fd)
 {
-    char buffer[MAX_BUFFER_SIZE], c = '\0';
+    char buffer[MAX_BUFFER_SIZE], c = '\0', *buff;
     // Coloca fd no inicio do ficheiro de historico
     // Isto porque, temos que imaginar, que tambem
     // existe um processo que escreve neste.
     lseek(histd, 0, SEEK_SET);
-    ssize_t nread, acm = 0;
+    ssize_t nread, acm = 0, size;
+    Response resp;
 
     while ((nread = read(histd,
                 buffer, MAX_BUFFER_SIZE))
         > 0) {
-        if (write(fd, buffer, nread) == -1) {
+        resp = response_echo(buffer, nread);
+        buff = serialize_response(resp, &size);
+
+        if (write(fd, buff, size) == -1) {
             // Em caso de erro, voltar a por o fd no fim
             // do ficheiro.
             lseek(histd, 0, SEEK_END);
             return -1;
         }
+
+        free(buff);
+        free(resp);
+
         acm += nread;
     }
 
@@ -188,10 +196,11 @@ void readapt_log_offset(unsigned long ID)
 
 ssize_t get_buffer_info(int fd, unsigned long ID)
 {
-    char strbuff[MAX_BUFFER_SIZE], c = '\0';
+    char strbuff[MAX_BUFFER_SIZE], c = '\0', *buff;
     ssize_t w, size, tmp, procd = 0;
     ssize_t offset = get_offset_size(ID, &size);
-    ssize_t step;
+    ssize_t step, szz;
+    Response resp;
 
     if (offset == -1) {
         sprintf(strbuff, "Nao existe algum ID %ld na base.", ID);
@@ -222,13 +231,19 @@ ssize_t get_buffer_info(int fd, unsigned long ID)
             return -1;
         }
 
-        w = write(fd, strbuff, tmp);
+        resp = response_echo(strbuff, tmp);
+        buff = serialize_response(resp, &szz);
+
+        w = write(fd, buff, szz);
 
         if (w == -1) {
             throw_error(2, "Error inesperado na escrita.");
             lseek(log_file, 0, SEEK_END);
             return size;
         }
+
+        free(buff);
+        free(resp);
 
         procd += step;
     }

@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include "Response.h"
 
 /**
  * Define o tamanho de buffer default do sistema.
@@ -65,6 +66,7 @@ enum Command {
 };
 
 void throw_error(int fd, char* msg);
+ssize_t send_response(int fd, Response response);
 ssize_t readln(int fd, char* line, size_t size);
 char** specialized_tok(char* line, char delim, int* final_size);
 
