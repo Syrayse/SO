@@ -45,6 +45,14 @@ enum Request {
     LIST_HISTORY
 };
 
+enum Response {
+      TASK_EXECUTE = 0,
+      TASK_KILLED,
+      TASK_NEN_EXIST,
+      TASK_NEN_EXEC,
+      ECHO
+};
+
 /**
  * Define o tipo de comportamento associado a um comando terminado.
  */

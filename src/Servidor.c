@@ -69,7 +69,7 @@ int run(char* argv, int in, int out)
     }
 
     _exit(1);
-    
+
     return r;
 }
 
@@ -276,13 +276,13 @@ void process_spec_output(char** argv)
 
 void setup_dispatcher(DispatchFunc* v)
 {
-    v[SET_PIPE_TIMEOUT] = process_pipe_timeout; // Ta feito
-    v[SET_EXEC_TIMEOUT] = process_exec_timeout; // Ta feito
-    v[EXECUTE_TASK] = process_exec_task; // Ta feito
-    v[LIST_IN_EXECUTION] = process_list_execs; // Ta feito
-    v[TERMINATE_TASK] = process_kill_task; // Ta feito
-    v[SPEC_OUTPUT] = process_spec_output; // Ta feito
-    v[LIST_HISTORY] = process_list_history; // Ta feito
+    v[SET_PIPE_TIMEOUT] = process_pipe_timeout;
+    v[SET_EXEC_TIMEOUT] = process_exec_timeout;
+    v[EXECUTE_TASK] = process_exec_task;
+    v[LIST_IN_EXECUTION] = process_list_execs;
+    v[TERMINATE_TASK] = process_kill_task;
+    v[SPEC_OUTPUT] = process_spec_output;
+    v[LIST_HISTORY] = process_list_history;
 }
 
 int main()
@@ -298,7 +298,6 @@ int main()
 
     id_pedido = init_log_file();
 
-    int i;
     pipe_reader = open(CL_TO_SR_PIPE, O_RDONLY);
     pipe_writer = open(SR_TO_CL_PIPE, O_WRONLY);
     ssize_t n;
@@ -311,12 +310,7 @@ int main()
         if ((n = read(pipe_reader, buffer, MAX_BUFFER_SIZE)) > 0) {
             r = deserialize_request(buffer, n);
 
-            printf("##################\n");
-            printf("ID:%d\nnArgs:%d\n", r->ID, r->nArgs);
-            for (i = 0; i < r->nArgs; i++)
-                printf("\tword %d: %s\n", i, r->argv[i]);
             (*req_dispatch[r->ID])(r->argv);
-            printf("##################\n");
 
             free(r);
         }

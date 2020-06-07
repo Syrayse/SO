@@ -5,7 +5,7 @@ CFLAGS = -Wall -g -Ofast -I$(IDIR)
 
 DEPS=$(IDIR)/$(wildcard *.h)
 
-SOURCES_OBJ=Common.o Request.o LogManager.o HashTable.o
+SOURCES_OBJ=Common.o Request.o LogManager.o HashTable.o Response.o
 
 %.o : %.c $(DEPS)
 		$(CC) $(CFLAGS) -c -o $@ $<
@@ -30,3 +30,6 @@ clean:
 	rm -rf pipes
 	rm -rf argus
 	rm -rf client
+	rm -rf log
+	rm -rf log.idx
+	rm -rf command_log

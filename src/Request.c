@@ -2,9 +2,9 @@
 #include "Common.h"
 #include <stdio.h>
 
-Request request_geneic(unsigned int ID, char** argv, unsigned int length)
+Request request_geneic(unsigned long ID, char** argv, unsigned long length)
 {
-    unsigned int i;
+    unsigned long i;
     Request request = malloc(sizeof(struct request));
 
     request->ID = ID;
@@ -24,11 +24,11 @@ char* serialize_request(Request request, ssize_t* length)
     ssize_t byte_size = 0, used = 0;
     char* buffer = NULL;
     /* Assume que o argv termina com NULL*/
-    unsigned int ID = request->ID; /* Ocupa os primeiros 4 bytes */
+    unsigned long ID = request->ID; /* Ocupa os primeiros 4 bytes */
 
     /* Se ha nArgs, há nArgs offsets */
     ssize_t* offsets = malloc(sizeof(ssize_t) * request->nArgs);
-    unsigned int* lens = malloc(sizeof(unsigned int) * request->nArgs);
+    unsigned long* lens = malloc(sizeof(unsigned long) * request->nArgs);
     /* Calcula os offsets primeiro */
     if (request->nArgs > 0) {
         offsets[0] = 0;
@@ -43,14 +43,14 @@ char* serialize_request(Request request, ssize_t* length)
         byte_size += lens[i - 1];
     }
     /* Add overhead */
-    byte_size += 2 * sizeof(unsigned int)
+    byte_size += 2 * sizeof(unsigned long)
         + request->nArgs * sizeof(ssize_t);
 
     /* Já pode alocar o tamanho do buffer */
     buffer = malloc(sizeof(char) * byte_size);
 
     /* Insere ID e Numero de Argumentos */
-    used = sizeof(unsigned int);
+    used = sizeof(unsigned long);
     memcpy(buffer, &ID, used);
     memcpy(buffer + used, &request->nArgs, used);
     used *= 2;
@@ -73,7 +73,7 @@ char* serialize_request(Request request, ssize_t* length)
 Request deserialize_request(char* buffer, ssize_t length)
 {
     /* Deve haver pelo menos 2 * sizeof(int) bytes */
-    unsigned int N, i = 0;
+    unsigned long N, i = 0;
     Request request = NULL;
     char *tmp, *offsetdata = NULL;
     ssize_t arglen, *offsets, base;
@@ -82,12 +82,12 @@ Request deserialize_request(char* buffer, ssize_t length)
         request = malloc(sizeof(struct request));
 
         // Estabelece o numero de pedido.
-        request->ID = *(unsigned int*)buffer;
+        request->ID = *(unsigned long*)buffer;
 
         // Estabelece o numero de argumentos.
-        request->nArgs = *(unsigned int*)(buffer + sizeof(unsigned int));
+        request->nArgs = *(unsigned long*)(buffer + sizeof(unsigned long));
         // Partindo disto, podemos construir os offsets;
-        offsetdata = buffer + 2 * sizeof(unsigned int);
+        offsetdata = buffer + 2 * sizeof(unsigned long);
         offsets = (ssize_t*)malloc(sizeof(ssize_t) * request->nArgs);
 
         for (i = 0; i < request->nArgs; i++) {
@@ -98,7 +98,7 @@ Request deserialize_request(char* buffer, ssize_t length)
         request->argv[request->nArgs] = NULL;
 
         N = request->nArgs;
-        base = 2 * sizeof(unsigned int) + request->nArgs * sizeof(ssize_t);
+        base = 2 * sizeof(unsigned long) + request->nArgs * sizeof(ssize_t);
         // Define os primeiros N - 1 argumentos;
 
         for (i = 1; i < N; i++) {
@@ -125,37 +125,37 @@ Request deserialize_request(char* buffer, ssize_t length)
     return request;
 }
 
-Request request_pipe_timeout(char** argv, unsigned int length)
+Request request_pipe_timeout(char** argv, unsigned long length)
 {
     return request_geneic(SET_PIPE_TIMEOUT, argv, length);
 }
 
-Request request_exec_timeout(char** argv, unsigned int length)
+Request request_exec_timeout(char** argv, unsigned long length)
 {
     return request_geneic(SET_EXEC_TIMEOUT, argv, length);
 }
 
-Request request_execute_task(char** argv, unsigned int length)
+Request request_execute_task(char** argv, unsigned long length)
 {
     return request_geneic(EXECUTE_TASK, argv, length);
 }
 
-Request request_list_execution(char** argv, unsigned int length)
+Request request_list_execution(char** argv, unsigned long length)
 {
     return request_geneic(LIST_IN_EXECUTION, argv, length);
 }
 
-Request request_kill_task(char** argv, unsigned int length)
+Request request_kill_task(char** argv, unsigned long length)
 {
     return request_geneic(TERMINATE_TASK, argv, length);
 }
 
-Request request_list_history(char** argv, unsigned int length)
+Request request_list_history(char** argv, unsigned long length)
 {
     return request_geneic(LIST_HISTORY, argv, length);
 }
 
-Request request_spec_output(char** argv, unsigned int length)
+Request request_spec_output(char** argv, unsigned long length)
 {
     return request_geneic(SPEC_OUTPUT, argv, length);
 }
