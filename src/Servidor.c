@@ -57,17 +57,19 @@ void redirect(int oldfd, int newfd)
 
 int run(char* argv, int in, int out)
 {
-    int r = 0;
+    int r = 0, size;
     redirect(in, STDIN_FILENO);
     redirect(out, STDOUT_FILENO);
 
-    // Para ja isto chega para testes, mas depois tenho de fazer
-    // a minha propria funcao.
-    r = execl("/bin/sh", "sh", "-c", argv, (char*)0);
+    // faz o tokenizing da string indicada.
+    char **tokens = specialized_tok(argv, '\"', &size);
+
+    if(size > 0) {
+          r = execvp(tokens[0], tokens);
+    }
+
     _exit(1);
-
-    //_exit(-2);
-
+    
     return r;
 }
 

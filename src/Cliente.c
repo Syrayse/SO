@@ -97,10 +97,12 @@ void parse_shell()
             throw_error(2, "Erro na escrita");
 
         if ((n = readln(0, aux_buffer, MAX_BUFFER_SIZE)) > 0) {
-            tokens = specialized_tok(aux_buffer, &size);
+            tokens = specialized_tok(aux_buffer, '`', &size);
 
             i = parse_shell_inputs(size, tokens);
-        }
+      } else if (n < 0){
+            i = 1;
+      }
     }
 
     // diz ao filho para parar de ler do server.

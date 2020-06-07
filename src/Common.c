@@ -26,6 +26,7 @@ void throw_error(int fd, char* msg)
 
 ssize_t readln(int fd, char* line, size_t size)
 {
+      char c = '\n';
     ssize_t i, t_read = 0, ind;
 
     // Le tudo, de seguida um a um analisa.
@@ -34,9 +35,13 @@ ssize_t readln(int fd, char* line, size_t size)
     if (t_read == -1) {
         throw_error(2, "erro na escrita.");
         return -1;
+ } else if (!t_read) {
+       if( write(fd, &c, 1) == -1)
+            throw_error(2, "erro na escrita.");
+          return -1;
     }
 
-    for (i = 0; i < t_read && line[i] != '\n'; i++)
+    for (i = 0; i < t_read && line[i] != c; i++)
         ;
 
     ind = (i == t_read) ? 0 : i;
@@ -47,7 +52,7 @@ ssize_t readln(int fd, char* line, size_t size)
     return ind;
 }
 
-char** specialized_tok(char* line, int* final_size)
+char** specialized_tok(char* line, char delim, int* final_size)
 {
     // Esta funcao efetua um tokenizing de acordo espacos
     // em branco, e ` como separador de string.
@@ -72,7 +77,7 @@ char** specialized_tok(char* line, int* final_size)
             // if whitespace, ignore
             if (!isspace(tmp)) {
                 // if first letter is '`', changes to STRING.
-                if (tmp == '`') {
+                if (tmp == delim) {
                     start = i + 1;
                     state = STRING;
                 } else {
@@ -97,7 +102,7 @@ char** specialized_tok(char* line, int* final_size)
         // if reading a string.
         case STRING:
             // if whitespace ignore, if reached end `, add file.
-            if (tmp == '`') {
+            if (tmp == delim) {
                 line[i] = '\0';
                 res[size++] = strdup(line + start);
                 line[i] = tmp;
