@@ -5,10 +5,10 @@
 #include <sys/types.h>
 
 typedef struct response {
-    int ID;
-    unsigned long id_task;
-    ssize_t length;
-    char* buffer;
+        int ID;
+        unsigned long id_task;
+        ssize_t length;
+        char* buffer;
 } * Response;
 
 char* serialize_response(Response response, ssize_t* length);

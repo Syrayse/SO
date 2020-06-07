@@ -4,9 +4,9 @@
 #include <sys/types.h>
 
 typedef struct request {
-    unsigned long ID;
-    unsigned long nArgs;
-    char** argv;
+        unsigned long ID;
+        unsigned long nArgs;
+        char** argv;
 } * Request;
 
 char* serialize_request(Request request, ssize_t* length);

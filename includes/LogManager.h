@@ -10,7 +10,7 @@
 #define COMM_LOG_FILE "command_log"
 
 ssize_t append_task_info(unsigned long key, char* task,
-    enum Command term);
+                         enum Command term);
 
 /**
  * Inicializa os ficheiros log_file e LOG_IDX_FILE.
@@ -20,7 +20,7 @@ ssize_t append_task_info(unsigned long key, char* task,
 unsigned long init_log_file();
 
 ssize_t append_task_info(unsigned long ID,
-    char* task, enum Command term);
+                         char* task, enum Command term);
 
 ssize_t dump_task_history(int fd);
 

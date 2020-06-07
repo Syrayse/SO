@@ -37,32 +37,32 @@
  * Define todos os códigos para processamento.
  */
 enum Request {
-    SET_PIPE_TIMEOUT = 0,
-    SET_EXEC_TIMEOUT,
-    EXECUTE_TASK,
-    LIST_IN_EXECUTION,
-    TERMINATE_TASK,
-    SPEC_OUTPUT,
-    LIST_HISTORY
+        SET_PIPE_TIMEOUT = 0,
+        SET_EXEC_TIMEOUT,
+        EXECUTE_TASK,
+        LIST_IN_EXECUTION,
+        TERMINATE_TASK,
+        SPEC_OUTPUT,
+        LIST_HISTORY
 };
 
 enum Response {
-      TASK_EXECUTE = 0,
-      TASK_KILLED,
-      TASK_NEN_EXIST,
-      TASK_NEN_EXEC,
-      ECHO
+        TASK_EXECUTE = 0,
+        TASK_KILLED,
+        TASK_NEN_EXIST,
+        TASK_NEN_EXEC,
+        ECHO
 };
 
 /**
  * Define o tipo de comportamento associado a um comando terminado.
  */
 enum Command {
-    COMMAND_SUCESS,
-    COMMAND_ERROR,
-    COMMAND_TERMINATED,
-    COMMAND_PIPE_TIMEOUT,
-    COMMAND_EXEC_TIMEOUT,
+        COMMAND_SUCESS,
+        COMMAND_ERROR,
+        COMMAND_TERMINATED,
+        COMMAND_PIPE_TIMEOUT,
+        COMMAND_EXEC_TIMEOUT,
 };
 
 void throw_error(int fd, char* msg);
