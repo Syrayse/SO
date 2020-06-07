@@ -148,9 +148,7 @@ void process_exec_timeout(char** argv)
 void process_exec_task(char** argv)
 {
     pid_t m, pid;
-    ssize_t n;
     int status;
-    char* str = "";
     if (pipe(terminate_pipe) == -1)
         throw_error(2, "error a criar pipe anonimo.");
     enum Command c = COMMAND_SUCESS;
@@ -168,10 +166,11 @@ void process_exec_task(char** argv)
             status = process_line(argv[0]);
             _exit(status == -1 ? 1 : 0);
         } else {
-            n = asprintf(&str, "nova tarefa #%ld.\n", id_pedido);
+             Response resp = response_task_execute(id_pedido);
 
-            if (write(pipe_writer, str, n) == -1)
-                throw_error(2, "Erro ao submeter info no pipe.");
+             send_response(pipe_writer, resp);
+
+             free(resp);
 
             waitpid(pid, &status, WUNTRACED);
 
@@ -297,14 +296,14 @@ int main()
     DispatchFunc req_dispatch[LIST_HISTORY + 1];
     setup_dispatcher(req_dispatch);
 
-    while (1) {
-        if ((n = read(pipe_reader, buffer, MAX_BUFFER_SIZE)) > 0) {
-            r = deserialize_request(buffer, n);
+    while ((n = read(pipe_reader, buffer, MAX_BUFFER_SIZE)) >= 0) {
+          if(n) {
+                r = deserialize_request(buffer, n);
 
-            (*req_dispatch[r->ID])(r->argv);
+                (*req_dispatch[r->ID])(r->argv);
 
-            free(r);
-        }
+                free(r); 
+          }
     }
 
     destroy_hash_table(table);

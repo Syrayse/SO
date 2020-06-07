@@ -1,6 +1,7 @@
 #include "Common.h"
 #include "LogManager.h"
 #include "Request.h"
+#include "Language.h"
 #include <stdio.h>
 
 int pipe_reader, pipe_writer, read_server = 1;
@@ -160,27 +161,55 @@ void parse_arguments(int argc, char* argv[])
 
 int main(int argc, char* argv[])
 {
+      LangDispatchFunc dispatch[ECHO+1];
     pipe_writer = open(CL_TO_SR_PIPE, O_WRONLY);
     pipe_reader = open(SR_TO_CL_PIPE, O_RDONLY);
     signal(SIGUSR1, dont_read_server);
 
     ssize_t n, d;
+    Response resp;
     char buff[MAX_BUFFER_SIZE];
+
+    portuguese_language(dispatch);
+
+    if(argc == 3 && !strcmp(argv[1],"language")) {
+          switch(*argv[2]) {
+                case 'E':
+                case 'e':
+                  english_language(dispatch);
+                  break;
+                case 'd':
+                case 'D':
+                  german_language(dispatch);
+                  break;
+                case 'f':
+                case 'F':
+                  french_language(dispatch);
+                  break;
+          }
+   }
 
     /* Um dos forks fica sempre a imprimir o que o provem do servidor. */
     son = fork();
     if (!son) {
         while (read_server && (n = read(pipe_reader, buff, MAX_BUFFER_SIZE)) >= 0) {
-            d = write(1, buff, n);
+             if(n == 1) {
+                   d = write(1, buff, n);
 
-            if (d == -1)
-                throw_error(2, "Nao escreveu no stdout.");
+                  if (d == -1)
+                      throw_error(2, "Nao escreveu no stdout.");
+             } else {
+                   resp = deserialize_response(buff, n);
+
+                   (*dispatch[resp->ID])(resp);
+             }
+
         }
 
         _exit(0);
     }
 
-    if (argc == 1) {
+    if (argc == 1 || (argc == 3 && !strcmp(argv[1],"language"))) {
         // Entrar em modo shell
         parse_shell();
     } else {

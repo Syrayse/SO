@@ -1,5 +1,4 @@
 #include "Common.h"
-
 #include <ctype.h>
 #include <stdio.h>
 
@@ -23,20 +22,6 @@ void throw_error(int fd, char* msg)
         ;
 
     free(str);
-}
-
-ssize_t send_response(int fd, Response response) {
-      ssize_t size;
-      char * buffer = serialize_response(response, &size);
-
-      if( write(fd, buffer, size) == -1 ) {
-            throw_error(2, "erro na escrita.");
-            size = -1;
-      }
-
-      free(buffer);
-
-      return size;
 }
 
 ssize_t readln(int fd, char* line, size_t size)

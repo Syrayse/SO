@@ -1,7 +1,7 @@
 #include "Response.h"
 #include "Common.h"
-
-Response response_generic(unsigned long ID, unsigned long id_task,
+#include <stdio.h>
+Response response_generic(int ID, unsigned long id_task,
                         ssize_t length, char * buffer) {
       Response r = malloc(sizeof(struct response));
 
@@ -18,26 +18,26 @@ char* serialize_response(Response response, ssize_t* length) {
       unsigned long sz = 0;
 
       if(response->ID == ECHO) {
-            sz = sizeof(unsigned long) + sizeof(ssize_t) + response->length;
+            sz = sizeof(int) + sizeof(ssize_t) + response->length;
             buffer = malloc(sizeof(char) * sz);
 
             // insere ID
-            memcpy(buffer, &(response->ID), sizeof(unsigned long));
+            memcpy(buffer, &(response->ID), sizeof(int));
 
             // Insere length
-            memcpy(buffer + sizeof(ssize_t), &(response->id_task), sizeof(ssize_t));
+            memcpy(buffer + sizeof(int), &(response->length), sizeof(ssize_t));
 
             // Insere buffer
-            memcpy(buffer + sizeof(ssize_t) + sizeof(unsigned long), response->buffer, response->length);
+            memcpy(buffer + sizeof(ssize_t) + sizeof(int), response->buffer, response->length);
       } else {
-            sz = sizeof(unsigned long)*2;
+            sz = sizeof(int) + sizeof(unsigned long);
             buffer = malloc(sizeof(char) * sz);
 
             // Insere ID
-            memcpy(buffer, &(response->ID), sizeof(unsigned long));
+            memcpy(buffer, &(response->ID), sizeof(int));
 
             // Insere id_task
-            memcpy(buffer + sizeof(unsigned long), &(response->id_task), sizeof(unsigned long));
+            memcpy(buffer + sizeof(int), &(response->id_task), sizeof(unsigned long));
       }
 
       *length = sz;
@@ -47,14 +47,16 @@ char* serialize_response(Response response, ssize_t* length) {
 
 Response deserialize_response(char* buffer, ssize_t length) {
       Response r = malloc(sizeof(struct response));
-      unsigned long ID = *(unsigned long*)buffer;
+      int ID = *(int*)buffer;
+
+      r->ID = ID;
 
       if(ID == ECHO) {
             r->id_task = 0;
-            r->length = *(ssize_t*)(buffer + sizeof(unsigned long));
-            r->buffer = buffer + sizeof(unsigned long) + sizeof(ssize_t);
+            r->length = *(ssize_t*)(buffer + sizeof(int));
+            r->buffer = buffer + sizeof(int) + sizeof(ssize_t);
       } else {
-            r->id_task = *(unsigned long*)(buffer + sizeof(unsigned long));
+            r->id_task = *(unsigned long*)(buffer + sizeof(int));
             r->length = -1;
             r->buffer = NULL;
       }
@@ -80,4 +82,18 @@ Response response_task_nen_exec(unsigned long id_task) {
 
 Response response_echo(char *buffer, ssize_t length) {
       return response_generic(ECHO, 0, length, buffer);
+}
+
+ssize_t send_response(int fd, Response response) {
+      ssize_t size;
+      char * buffer = serialize_response(response, &size);
+
+      if( write(fd, buffer, size) == -1 ) {
+            throw_error(2, "erro na escrita.");
+            size = -1;
+      }
+
+      free(buffer);
+
+      return size;
 }
