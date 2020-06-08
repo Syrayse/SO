@@ -203,8 +203,7 @@ ssize_t get_buffer_info(int fd, unsigned long ID)
         Response resp;
 
         if (offset == -1) {
-                sprintf(strbuff, "Nao existe algum ID %ld na base.", ID);
-                throw_error(fd, strbuff);
+                send_response(fd, response_task_nen_exist(ID));
                 return -1;
         }
 

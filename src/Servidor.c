@@ -42,9 +42,7 @@ void foreach_task(unsigned long key, void* value)
         char* buff = "";
         TaskInfo ti = (TaskInfo)value;
         ssize_t n = asprintf(&buff, "#%ld: %s\n", key, ti->command);
-
-        if (n && write(pipe_writer, buff, n) == -1)
-                throw_error(2, "Erro na escrita com foreach.");
+        send_response(pipe_writer, response_echo(buff, n));
 }
 
 void redirect(int oldfd, int newfd)
