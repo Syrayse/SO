@@ -24,15 +24,13 @@ void process_termination(int signum)
 {
         unsigned long id;
 
-        close(terminate_pipe[1]);
-
         if (read(terminate_pipe[0], &id,
                  sizeof(unsigned long))
             == -1) {
                 throw_error(2, "error ao ler do pipe.");
                 return;
         }
-        close(terminate_pipe[0]);
+
         readapt_log_offset(id);
         hash_table_remove(table, id);
 }
@@ -63,6 +61,7 @@ int run(char* argv, int in, int out)
         char **tokens = specialized_tok(argv, '\"', &size);
 
         if(size > 0) {
+                //r = execl("/bin/sh", "sh", "-c", argv, NULL);
                 r = execvp(tokens[0], tokens);
         }
 
@@ -184,8 +183,7 @@ void process_exec_task(char** argv)
 {
         pid_t m, pid;
         int status;
-        if (pipe(terminate_pipe) == -1)
-                throw_error(2, "error a criar pipe anonimo.");
+
         enum Command c = COMMAND_SUCESS;
 
         // Devera executar um novo processo
@@ -328,7 +326,7 @@ int main()
         ssize_t n;
         Request r;
         char buffer[MAX_BUFFER_SIZE];
-        unsigned long ID, length;
+        unsigned long length;
         DispatchFunc req_dispatch[LIST_HISTORY + 1];
         setup_dispatcher(req_dispatch);
 
@@ -336,6 +334,9 @@ int main()
                 throw_error(2, "error ao criar pipe.");
                 return 0;
         }
+
+        if (pipe2(terminate_pipe, O_DIRECT) == -1)
+                throw_error(2, "error a criar pipe anonimo.");
 
         /*
            Pipe anonimo cujo objetivo é ser um bottleneck entre o servidor
@@ -352,7 +353,6 @@ int main()
                 close(bottleneck[1]);
 
                 while( (n = read(bottleneck[0], buffer, MAX_BUFFER_SIZE)) >= 0 ) {
-                        ID = *(unsigned long*)buffer;
                         length = *(unsigned long*)(buffer + ul);
 
                         // Se o que li contem a info toda, entao vai para o stdout.

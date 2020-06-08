@@ -151,8 +151,8 @@ void readapt_log_offset(unsigned long ID)
                 // adicionar padding ate a posicao necessaria.
                 curr_offset = lseek(log_idx_file, 0, SEEK_END);
 
-                for (i = num_elems; i < ID; i++) {
-                        memcpy(buffer2 + i - num_elems, &c, 1);
+                for (i = 0; i < (ID - num_elems)*N; i++) {
+                        memcpy(buffer2 + i, &c, 1);
                         used++;
                 }
 
