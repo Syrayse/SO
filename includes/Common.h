@@ -33,6 +33,8 @@
  */
 #define SR_TO_CL_PIPE "sr2clpipe"
 
+#define max(a,b) (((a)>(b)) ? (a) : (b))
+
 /**
  * Define todos os códigos para processamento.
  */

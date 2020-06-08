@@ -16,7 +16,7 @@ typedef struct taskinfo {
 
 unsigned int g_pipe_timeout = BASE_PIPE_TIMEOUT;
 unsigned int g_exec_timeout = BASE_EXEC_TIMEOUT;
-int pipe_reader, pipe_writer, terminate_pipe[2];
+int pipe_reader, pipe_writer, terminate_pipe[2], bottleneck[2];
 unsigned long id_pedido;
 HashTable table;
 
@@ -32,8 +32,8 @@ void process_termination(int signum)
                 throw_error(2, "error ao ler do pipe.");
                 return;
         }
-
         close(terminate_pipe[0]);
+        readapt_log_offset(id);
         hash_table_remove(table, id);
 }
 
@@ -106,31 +106,68 @@ int pipe_process(char* command[], int n)
         return nd;
 }
 
-int process_line(char* str)
+int process_line(char* str, unsigned long ID)
 {
-        int t, i, N = 0;
+        int t, i, N = 0, c = 1;
         char** command = malloc(sizeof(char*) * 10);
         char* token = strtok(str, "|");
+        ssize_t nread, total = 0, ul = sizeof(unsigned long);
+        char *buff = malloc(sizeof(char)*MAX_BUFFER_SIZE) + 2*ul;
+        int bottlefeeder[2];
+
+        // copia id para o buffer
+        memcpy(buff, &ID, ul);
 
         while (token != NULL) {
                 command[N++] = strdup(token);
                 token = strtok(NULL, "|");
         }
 
-        t = pipe_process(command, N);
+        // Cria pipe que vai servir para coms de info.
+        if(pipe(bottlefeeder) == -1) {
+                throw_error(2, "Erro ao criar pipes.");
+                return -1;
+        }
+
+        if(!fork()) {
+                close(bottlefeeder[0]);
+                dup2(bottlefeeder[1], 0);
+                t = pipe_process(command, N);
+                _exit(1);
+        }
+
+        // le a info do pipe_proc.
+        close(bottlefeeder[1]);
+        while( (nread = read(bottlefeeder[0], buff + total + 2*ul, MAX_BUFFER_SIZE)) > 0) {
+                if(nread == MAX_BUFFER_SIZE) {
+                        c++;
+                        buff = realloc(buff, sizeof(char)*c*MAX_BUFFER_SIZE + 2*ul);
+                }
+
+                total += nread;
+        }
+
+        close(bottlefeeder[0]);
+
+        // copia length para o buffer
+        memcpy(buff + ul, &total, ul);
+
+        // escreve tudo de uma vez no bottleneck
+        close(bottleneck[0]);
+        if( write(bottleneck[1], buff, total + 2*ul) == -1)
+                throw_error(2, "erro na escrita.");
+
+        close(bottleneck[1]);
 
         for (i = 0; i < N; i++) {
                 free(command[i]);
         }
 
         free(command);
-        return t;
-}
 
-void update_indexes(int signum)
-{
-        readapt_log_offset(id_pedido);
-        id_pedido++;
+        //free(buff);
+
+        return t;
 }
 
 void process_pipe_timeout(char** argv)
@@ -163,7 +200,7 @@ void process_exec_task(char** argv)
 
 
                 if (!pid) {
-                        status = process_line(argv[0]);
+                        status = process_line(argv[0], id_pedido);
                         _exit(status == -1 ? 1 : 0);
                 } else {
                         Response resp = response_task_execute(id_pedido);
@@ -174,9 +211,7 @@ void process_exec_task(char** argv)
 
                         waitpid(pid, &status, WUNTRACED);
 
-                        kill(getppid(), SIGUSR1);
-
-                        if (WEXITSTATUS(status) != 0) {
+                        if (WEXITSTATUS(status) < 0) {
                                 c = COMMAND_ERROR;
                         }
 
@@ -201,6 +236,7 @@ void process_exec_task(char** argv)
         ti->care_taker = m;
         ti->command = strdup(argv[0]);
         hash_table_insert(table, id_pedido, ti);
+        id_pedido++;
 }
 
 void process_list_execs(char** argv)
@@ -283,7 +319,6 @@ int main()
         // sinal ao processo pai, de forma a notificar que
         // pode atualizar o log_manager, por a informacao de output
         // do processo filho ja foi inserida.
-        signal(SIGUSR1, update_indexes);
         signal(SIGUSR2, process_termination);
 
         id_pedido = init_log_file();
@@ -293,9 +328,65 @@ int main()
         ssize_t n;
         Request r;
         char buffer[MAX_BUFFER_SIZE];
+        unsigned long ID, length;
         DispatchFunc req_dispatch[LIST_HISTORY + 1];
         setup_dispatcher(req_dispatch);
 
+        if(pipe(bottleneck) == -1) {
+                throw_error(2, "error ao criar pipe.");
+                return 0;
+        }
+
+        /*
+           Pipe anonimo cujo objetivo é ser um bottleneck entre o servidor
+           e a escrita no respectivo ficheiro de outputs.
+
+           sizeof(unsigned long) bytes -- id do pedido.
+           sizeof(unsigned long) bytes -- tamanho do pedido.
+         */
+        if(!fork()) {
+                unsigned long sz, ul = sizeof(unsigned long);
+                char *auxbuff = NULL;
+
+                // fecha ponta de escrita
+                close(bottleneck[1]);
+
+                while( (n = read(bottleneck[0], buffer, MAX_BUFFER_SIZE)) >= 0 ) {
+                        ID = *(unsigned long*)buffer;
+                        length = *(unsigned long*)(buffer + ul);
+
+                        // Se o que li contem a info toda, entao vai para o stdout.
+                        if(length <= n - 2*ul) {
+                                if( write(1, buffer + 2*ul, length) == -1 )
+                                        throw_error(2, "erro na escrita.");
+                        } else {
+                                // caso contrario, tenho de ler mais sz bytes
+                                sz = max(length - n, MAX_BUFFER_SIZE);
+                                auxbuff = malloc(sizeof(char)*sz);
+
+                                // le o que falta
+                                if( read(bottleneck[0], auxbuff, length -n) == -1 )
+                                        throw_error(2, "erro na leitura.");
+
+                                // escreve o que falta
+                                if( write(1, auxbuff, length - n) == -1 )
+                                        throw_error(2, "erro na escrita.");
+
+                                free(auxbuff);
+                                auxbuff = NULL;
+                        }
+
+                }
+
+                // fecha ponta de leitura
+                close(bottleneck[0]);
+
+                _exit(1);
+        }
+
+        /*
+           Pipe com nome dedicado a ler pedidos do cliente.
+         */
         while ((n = read(pipe_reader, buffer, MAX_BUFFER_SIZE)) >= 0) {
                 if(n) {
                         r = deserialize_request(buffer, n);
