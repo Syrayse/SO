@@ -94,7 +94,7 @@ void parse_shell()
         while (i != 1) {
                 char aux_buffer[MAX_BUFFER_SIZE];
 
-                if (write(1, "> ", 2) == -1)
+                if (write(1, "argus$ ", 7) == -1)
                         throw_error(2, "Erro na escrita");
 
                 if ((n = readln(0, aux_buffer, MAX_BUFFER_SIZE)) > 0) {
