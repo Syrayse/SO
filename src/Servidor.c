@@ -48,7 +48,6 @@ void exec_timeout(int signum) {
 }
 
 void pipe_timeout(int signum) {
-        fprintf(stderr, "pipe timeout has been called\n");
         terminating_task(id_pedido, COMMAND_PIPE_TIMEOUT, 1);
 }
 
