@@ -22,17 +22,25 @@ HashTable table;
 
 void process_termination(int signum)
 {
+        ssize_t sz = sizeof(int) + sizeof(unsigned long);
+        char *buffer = malloc(sz);
+        int code;
         unsigned long id;
 
-        if (read(terminate_pipe[0], &id,
-                 sizeof(unsigned long))
-            == -1) {
+        if (read(terminate_pipe[0], buffer, sz) == -1) {
                 throw_error(2, "error ao ler do pipe.");
                 return;
         }
 
+        id = *(unsigned long*)buffer;
+        code = *(int*)(buffer + sizeof(unsigned long));
+        TaskInfo ti = (TaskInfo)hash_table_find(table, id);
+
         readapt_log_offset(id);
+        append_task_info(id, ti->command, code);
         hash_table_remove(table, id);
+
+        free(buffer);
 }
 
 void foreach_task(unsigned long key, void* value)
@@ -65,7 +73,7 @@ int run(char* argv, int in, int out)
                 r = execvp(tokens[0], tokens);
         }
 
-        _exit(1);
+        _exit(COMMAND_ERROR);
 
         return r;
 }
@@ -107,12 +115,13 @@ int pipe_process(char* command[], int n)
 
 int process_line(char* str, unsigned long ID)
 {
-        int t, i, N = 0, c = 1;
+        int t = -1, i, N = 0, c = 1;
         char** command = malloc(sizeof(char*) * 10);
         char* token = strtok(str, "|");
         ssize_t nread, total = 0, ul = sizeof(unsigned long);
         char *buff = malloc(sizeof(char)*MAX_BUFFER_SIZE) + 2*ul;
         int bottlefeeder[2];
+        pid_t son;
 
         // copia id para o buffer
         memcpy(buff, &ID, ul);
@@ -128,11 +137,12 @@ int process_line(char* str, unsigned long ID)
                 return -1;
         }
 
-        if(!fork()) {
+        son = fork();
+        if(!son) {
                 close(bottlefeeder[0]);
                 dup2(bottlefeeder[1], 0);
                 t = pipe_process(command, N);
-                _exit(1);
+                _exit(23);
         }
 
         // le a info do pipe_proc.
@@ -147,6 +157,8 @@ int process_line(char* str, unsigned long ID)
         }
 
         close(bottlefeeder[0]);
+
+        waitpid(son, &t, WUNTRACED);
 
         // copia length para o buffer
         memcpy(buff + ul, &total, ul);
@@ -183,8 +195,8 @@ void process_exec_task(char** argv)
 {
         pid_t m, pid;
         int status;
-
-        enum Command c = COMMAND_SUCESS;
+        char *buff;
+        int c = COMMAND_SUCESS;
 
         // Devera executar um novo processo
         // Novo processo serializa task e comunica o respectivo id.
@@ -199,7 +211,7 @@ void process_exec_task(char** argv)
 
                 if (!pid) {
                         status = process_line(argv[0], id_pedido);
-                        _exit(status == -1 ? 1 : 0);
+                        _exit(WEXITSTATUS(status));
                 } else {
                         Response resp = response_task_execute(id_pedido);
 
@@ -209,22 +221,27 @@ void process_exec_task(char** argv)
 
                         waitpid(pid, &status, WUNTRACED);
 
-                        if (WEXITSTATUS(status) < 0) {
+                        if (WEXITSTATUS(status) == COMMAND_ERROR) {
                                 c = COMMAND_ERROR;
                         }
 
-                        append_task_info(id_pedido, argv[0], c);
-
                         kill(getppid(), SIGUSR2);
+
+                        buff = malloc(sizeof(unsigned long) + sizeof(int));
+                        memcpy(buff, &id_pedido, sizeof(unsigned long));
+                        memcpy(buff + sizeof(unsigned long), &c,
+                               sizeof(int));
 
                         close(terminate_pipe[0]);
 
-                        if (write(terminate_pipe[1], &id_pedido,
-                                  sizeof(unsigned long))
+                        if (write(terminate_pipe[1], buff,
+                                  sizeof(unsigned long) + sizeof(int))
                             == -1)
                                 throw_error(2, "error na escrita do pipe.");
 
                         close(terminate_pipe[1]);
+
+                        free(buff);
                 }
 
                 _exit(0);

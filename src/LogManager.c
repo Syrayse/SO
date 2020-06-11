@@ -29,13 +29,13 @@ ssize_t append_task_info(unsigned long key, char* task,
                 strcpy(buffer, "erro inesperado");
                 break;
         case COMMAND_TERMINATED:
-                strcpy(buffer, "morto");
+                strcpy(buffer, "assassinada");
                 break;
         case COMMAND_EXEC_TIMEOUT:
-                strcpy(buffer, "max inactividade");
+                strcpy(buffer, "max tempo inactividade");
                 break;
         case COMMAND_PIPE_TIMEOUT:
-                strcpy(buffer, "max execucao");
+                strcpy(buffer, "max tempo execucao");
                 break;
         }
 
