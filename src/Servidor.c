@@ -16,15 +16,47 @@ typedef struct taskinfo {
 
 unsigned int g_pipe_timeout = BASE_PIPE_TIMEOUT;
 unsigned int g_exec_timeout = BASE_EXEC_TIMEOUT;
-int pipe_reader, pipe_writer, terminate_pipe[2], bottleneck[2];
+int pipe_reader, pipe_writer, the_all_father,
+    terminate_pipe[2], bottleneck[2];
 unsigned long id_pedido;
 HashTable table;
 
+void terminating_task(unsigned long id, int code, int sig) {
+        kill(the_all_father, SIGUSR2);
+        char *buff = malloc(sizeof(unsigned long) + sizeof(int)*2);
+
+        memcpy(buff, &id, sizeof(unsigned long));
+        memcpy(buff + sizeof(unsigned long), &code,
+               sizeof(int));
+        memcpy(buff + sizeof(unsigned long) + sizeof(int),
+               &sig, sizeof(int));
+
+        close(terminate_pipe[0]);
+
+        if (write(terminate_pipe[1], buff,
+                  sizeof(unsigned long) + sizeof(int)*2)
+            == -1)
+                throw_error(2, "error na escrita do pipe.");
+
+        close(terminate_pipe[1]);
+
+        free(buff);
+}
+
+void exec_timeout(int signum) {
+        terminating_task(id_pedido, COMMAND_EXEC_TIMEOUT, 1);
+}
+
+void pipe_timeout(int signum) {
+        fprintf(stderr, "pipe timeout has been called\n");
+        terminating_task(id_pedido, COMMAND_PIPE_TIMEOUT, 1);
+}
+
 void process_termination(int signum)
 {
-        ssize_t sz = sizeof(int) + sizeof(unsigned long);
+        ssize_t sz = 2*sizeof(int) + sizeof(unsigned long);
         char *buffer = malloc(sz);
-        int code;
+        int code, sig;
         unsigned long id;
 
         if (read(terminate_pipe[0], buffer, sz) == -1) {
@@ -34,10 +66,16 @@ void process_termination(int signum)
 
         id = *(unsigned long*)buffer;
         code = *(int*)(buffer + sizeof(unsigned long));
+        sig = *(int*)(buffer + sizeof(unsigned long) + sizeof(int));
         TaskInfo ti = (TaskInfo)hash_table_find(table, id);
 
         readapt_log_offset(id);
         append_task_info(id, ti->command, code);
+
+        if(sig) {
+                kill(-ti->care_taker, SIGKILL);
+        }
+
         hash_table_remove(table, id);
 
         free(buffer);
@@ -80,10 +118,12 @@ int run(char* argv, int in, int out)
 
 int pipe_process(char* command[], int n)
 {
+        char buffer[MAX_BUFFER_SIZE];
+        ssize_t nread;
         int nd = 0;
         int i = 0, in = STDIN_FILENO;
         for (; i < (n - 1); ++i) {
-                int fd[2];
+                int fd[2], echo[2];
                 pid_t pid;
 
                 if (pipe(fd) == -1) {
@@ -94,12 +134,39 @@ int pipe_process(char* command[], int n)
                 pid = fork();
 
                 if (pid == 0) {
-                        close(fd[0]);
-                        nd = run(command[i], in, fd[1]);
 
-                        if (nd == -1)
+                        if(pipe(echo) == -1) {
+                                throw_error(2, "Erro ao criar pipes.");
                                 return -1;
+                        }
+
+                        close(fd[0]);
+
+                        if(!fork()) {
+                                close(echo[0]);
+                                nd = run(command[i], in, echo[1]);
+
+                                if (nd == -1) {
+                                        _exit(1);
+                                        return -1;
+                                }
+
+                        }
+                        close(echo[1]);
+                        alarm(g_pipe_timeout);
+                        while( (nread = read(echo[0], buffer,
+                                             MAX_BUFFER_SIZE)) > 0) {
+                                alarm(g_pipe_timeout);
+                                if( write(fd[1], buffer, nread) == -1)
+                                        throw_error(2, "error na escrita.");
+                        }
+
+                        close(echo[0]);
+                        close(fd[0]);
+
+                        _exit(0);
                 } else if (pid > 0) {
+                        //close(echo[1]);
                         close(fd[1]);
                         close(in);
                         in = fd[0];
@@ -165,6 +232,7 @@ int process_line(char* str, unsigned long ID)
 
         // escreve tudo de uma vez no bottleneck
         close(bottleneck[0]);
+
         if( write(bottleneck[1], buff, total + 2*ul) == -1)
                 throw_error(2, "erro na escrita.");
 
@@ -175,8 +243,6 @@ int process_line(char* str, unsigned long ID)
         }
 
         free(command);
-
-        //free(buff);
 
         return t;
 }
@@ -194,9 +260,7 @@ void process_exec_timeout(char** argv)
 void process_exec_task(char** argv)
 {
         pid_t m, pid;
-        int status;
-        char *buff;
-        int c = COMMAND_SUCESS;
+        int status, c = COMMAND_SUCESS;
 
         // Devera executar um novo processo
         // Novo processo serializa task e comunica o respectivo id.
@@ -206,18 +270,18 @@ void process_exec_task(char** argv)
                 setpgrp();
                 redir_log_file(1);
 
+                signal(SIGALRM, exec_timeout);
+                alarm(g_exec_timeout);
+
                 pid = fork();
 
 
                 if (!pid) {
+                        signal(SIGALRM, pipe_timeout);
                         status = process_line(argv[0], id_pedido);
                         _exit(WEXITSTATUS(status));
                 } else {
-                        Response resp = response_task_execute(id_pedido);
-
-                        send_response(pipe_writer, resp);
-
-                        free(resp);
+                        send_response(pipe_writer, response_task_execute(id_pedido));
 
                         waitpid(pid, &status, WUNTRACED);
 
@@ -225,23 +289,7 @@ void process_exec_task(char** argv)
                                 c = COMMAND_ERROR;
                         }
 
-                        kill(getppid(), SIGUSR2);
-
-                        buff = malloc(sizeof(unsigned long) + sizeof(int));
-                        memcpy(buff, &id_pedido, sizeof(unsigned long));
-                        memcpy(buff + sizeof(unsigned long), &c,
-                               sizeof(int));
-
-                        close(terminate_pipe[0]);
-
-                        if (write(terminate_pipe[1], buff,
-                                  sizeof(unsigned long) + sizeof(int))
-                            == -1)
-                                throw_error(2, "error na escrita do pipe.");
-
-                        close(terminate_pipe[1]);
-
-                        free(buff);
+                        terminating_task(id_pedido, c, 0);
                 }
 
                 _exit(0);
@@ -328,6 +376,7 @@ void setup_dispatcher(DispatchFunc* v)
 
 int main()
 {
+        the_all_father = getpid();
         table = hash_table_new(free);
         // Sinal que e enviado para o processo principal
         // assim que processos filhos terminam emitem este

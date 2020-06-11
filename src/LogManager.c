@@ -32,10 +32,10 @@ ssize_t append_task_info(unsigned long key, char* task,
                 strcpy(buffer, "assassinada");
                 break;
         case COMMAND_EXEC_TIMEOUT:
-                strcpy(buffer, "max tempo inactividade");
+                strcpy(buffer, "max tempo execucao");
                 break;
         case COMMAND_PIPE_TIMEOUT:
-                strcpy(buffer, "max tempo execucao");
+                strcpy(buffer, "max tempo inactividade do pipe");
                 break;
         }
 
