@@ -21,6 +21,70 @@ int pipe_reader, pipe_writer, the_all_father,
 unsigned long id_pedido;
 HashTable table;
 
+void print_server_hello(unsigned long id) {
+        int wrote = 0;
+        char buff[MAX_BUFFER_SIZE];
+        wrote += snprintf(buff, MAX_BUFFER_SIZE - wrote,
+                          "#########################\n");
+        wrote += snprintf(buff + wrote, MAX_BUFFER_SIZE - wrote,
+                          "# Argus Main Server --- #\n");
+        wrote += snprintf(buff + wrote, MAX_BUFFER_SIZE - wrote,
+                          "# Status: Online    --- #\n");
+        wrote += snprintf(buff + wrote, MAX_BUFFER_SIZE - wrote,
+                          "# Next ID is %6ld --- #\n", id);
+        wrote += snprintf(buff + wrote, MAX_BUFFER_SIZE - wrote,
+                          "#########################\n");
+        if( write(1, buff, wrote) == -1)
+                throw_error(2, "erro na escrita.");
+}
+
+void show_request_info(unsigned long id, unsigned long nArgs) {
+        int wrote = 0;
+        char buff[MAX_BUFFER_SIZE];
+        wrote += snprintf(buff, MAX_BUFFER_SIZE - wrote,
+                          "> Novo pedido do tipo ");
+
+        switch(id) {
+        case SET_PIPE_TIMEOUT:
+                wrote += snprintf(buff + wrote, MAX_BUFFER_SIZE - wrote,
+                                  "SET_PIPE_TIMEOUT");
+                break;
+        case SET_EXEC_TIMEOUT:
+                wrote += snprintf(buff + wrote, MAX_BUFFER_SIZE - wrote,
+                                  "SET_EXEC_TIMEOUT");
+                break;
+        case EXECUTE_TASK:
+                wrote += snprintf(buff + wrote, MAX_BUFFER_SIZE - wrote,
+                                  "EXECUTE_TASK");
+                break;
+        case LIST_IN_EXECUTION:
+                wrote += snprintf(buff + wrote, MAX_BUFFER_SIZE - wrote,
+                                  "LIST_IN_EXECUTION");
+                break;
+        case TERMINATE_TASK:
+                wrote += snprintf(buff + wrote, MAX_BUFFER_SIZE - wrote,
+                                  "TERMINATE_TASK");
+                break;
+        case SPEC_OUTPUT:
+                wrote += snprintf(buff + wrote, MAX_BUFFER_SIZE - wrote,
+                                  "SPEC_OUTPUT");
+                break;
+        case LIST_HISTORY:
+                wrote += snprintf(buff + wrote, MAX_BUFFER_SIZE - wrote,
+                                  "LIST_HISTORY");
+                break;
+        default:
+                wrote += snprintf(buff + wrote, MAX_BUFFER_SIZE - wrote,
+                                  "DESCONHECIDO");
+        }
+
+        wrote += snprintf(buff + wrote, MAX_BUFFER_SIZE - wrote,
+                          " com %ld argumentos.\n", nArgs);
+
+        if( write(1, buff, wrote) == -1)
+                throw_error(2, "erro na escrita.");
+}
+
 void terminating_task(unsigned long id, int code, int sig) {
         kill(the_all_father, SIGUSR2);
         char *buff = malloc(sizeof(unsigned long) + sizeof(int)*2);
@@ -106,7 +170,6 @@ int run(char* argv, int in, int out)
         char **tokens = specialized_tok(argv, '\"', &size);
 
         if(size > 0) {
-                //r = execl("/bin/sh", "sh", "-c", argv, NULL);
                 r = execvp(tokens[0], tokens);
         }
 
@@ -165,7 +228,6 @@ int pipe_process(char* command[], int n)
 
                         _exit(0);
                 } else if (pid > 0) {
-                        //close(echo[1]);
                         close(fd[1]);
                         close(in);
                         in = fd[0];
@@ -385,6 +447,7 @@ int main()
         signal(SIGUSR2, process_termination);
 
         id_pedido = init_log_file();
+        print_server_hello(id_pedido);
 
         pipe_reader = open(CL_TO_SR_PIPE, O_RDONLY);
         pipe_writer = open(SR_TO_CL_PIPE, O_WRONLY);
@@ -455,6 +518,8 @@ int main()
         while ((n = read(pipe_reader, buffer, MAX_BUFFER_SIZE)) >= 0) {
                 if(n) {
                         r = deserialize_request(buffer, n);
+
+                        show_request_info(r->ID, r->nArgs);
 
                         (*req_dispatch[r->ID])(r->argv);
 
