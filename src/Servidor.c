@@ -21,6 +21,14 @@ int pipe_reader, pipe_writer, the_all_father,
 unsigned long id_pedido;
 HashTable table;
 
+void warn_task_done(unsigned long id) {
+        char buff[MAX_BUFFER_SIZE];
+        int wrote = snprintf(buff, MAX_BUFFER_SIZE,
+                             "> Tarefa %ld terminou\n", id);
+        if( write(1, buff, wrote) == -1)
+                throw_error(2, "erro na escrita.");
+}
+
 void print_server_hello(unsigned long id) {
         int wrote = 0;
         char buff[MAX_BUFFER_SIZE];
@@ -132,14 +140,17 @@ void process_termination(int signum)
         sig = *(int*)(buffer + sizeof(unsigned long) + sizeof(int));
         TaskInfo ti = (TaskInfo)hash_table_find(table, id);
 
-        readapt_log_offset(id);
-        append_task_info(id, ti->command, code);
+        if(ti) {
+                warn_task_done(id);
+                readapt_log_offset(id);
+                append_task_info(id, ti->command, code);
 
-        if(sig) {
-                kill(-ti->care_taker, SIGKILL);
+                if(sig) {
+                        kill(-ti->care_taker, SIGKILL);
+                }
+
+                hash_table_remove(table, id);
         }
-
-        hash_table_remove(table, id);
 
         free(buffer);
 }
