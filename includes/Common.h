@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include "Response.h"
 
 /**
  * Define o tamanho de buffer default do sistema.
@@ -32,28 +33,38 @@
  */
 #define SR_TO_CL_PIPE "sr2clpipe"
 
+#define max(a,b) (((a)>(b)) ? (a) : (b))
+
 /**
  * Define todos os códigos para processamento.
  */
 enum Request {
-    SET_PIPE_TIMEOUT = 0,
-    SET_EXEC_TIMEOUT,
-    EXECUTE_TASK,
-    LIST_IN_EXECUTION,
-    TERMINATE_TASK,
-    SPEC_OUTPUT,
-    LIST_HISTORY
+        SET_PIPE_TIMEOUT = 0,
+        SET_EXEC_TIMEOUT,
+        EXECUTE_TASK,
+        LIST_IN_EXECUTION,
+        TERMINATE_TASK,
+        SPEC_OUTPUT,
+        LIST_HISTORY
+};
+
+enum Response {
+        TASK_EXECUTE = 0,
+        TASK_KILLED,
+        TASK_NEN_EXIST,
+        TASK_NEN_EXEC,
+        ECHO
 };
 
 /**
  * Define o tipo de comportamento associado a um comando terminado.
  */
 enum Command {
-    COMMAND_SUCESS,
-    COMMAND_ERROR,
-    COMMAND_TERMINATED,
-    COMMAND_PIPE_TIMEOUT,
-    COMMAND_EXEC_TIMEOUT,
+        COMMAND_SUCESS,
+        COMMAND_ERROR,
+        COMMAND_TERMINATED,
+        COMMAND_PIPE_TIMEOUT,
+        COMMAND_EXEC_TIMEOUT,
 };
 
 void throw_error(int fd, char* msg);
