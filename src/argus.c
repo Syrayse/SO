@@ -1,3 +1,4 @@
+#include "argus.h"
 #include "Common.h"
 #include "LogManager.h"
 #include "Request.h"

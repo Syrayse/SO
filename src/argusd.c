@@ -1,3 +1,4 @@
+#include "argus.h"
 #include "Common.h"
 #include "HashTable.h"
 #include "LogManager.h"
