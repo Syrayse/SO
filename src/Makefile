@@ -10,25 +10,25 @@ SOURCES_OBJ=Common.o Request.o LogManager.o HashTable.o Response.o Language.o
 %.o : %.c $(DEPS)
 		$(CC) $(CFLAGS) -c -o $@ $<
 
-instal: pipes client server
+all: pipes client server
+	./pipes
 
-server: Servidor.o $(SOURCES_OBJ)
-	$(CC) $(CFLAGS) Servidor.o $(SOURCES_OBJ) -o server
+server: argusd.o $(SOURCES_OBJ)
+	$(CC) $(CFLAGS) argusd.o $(SOURCES_OBJ) -o argusd
 
-client: Cliente.o $(SOURCES_OBJ)
-	$(CC) $(CFLAGS) Cliente.o $(SOURCES_OBJ) -o argus
+client: argus.o $(SOURCES_OBJ)
+	$(CC) $(CFLAGS) argus.o $(SOURCES_OBJ) -o argus
 
 pipes: pipes.o $(SOURCES_OBJ)
 	$(CC) $(CFLAGS) pipes.o $(SOURCES_OBJ) -o pipes
 
 clean:
 	rm -rf *.o
-	rm -rf server
+	rm -rf argusd
 	rm -rf cl2srpipe
 	rm -rf sr2clpipe
 	rm -rf pipes
 	rm -rf argus
-	rm -rf client
 	rm -rf log
 	rm -rf log.idx
 	rm -rf command_log
