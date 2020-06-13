@@ -1,4 +1,4 @@
-IDIR=../includes
+IDIR=.
 
 CC=gcc
 CFLAGS = -Wall -g -Ofast -I$(IDIR)
