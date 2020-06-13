@@ -485,7 +485,7 @@ int main()
                 return 0;
         }
 
-        if (pipe2(terminate_pipe, O_DIRECT) == -1)
+        if (pipe(terminate_pipe) == -1)
                 throw_error(2, "error a criar pipe anonimo.");
 
         /*
