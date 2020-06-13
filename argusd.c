@@ -322,12 +322,22 @@ int process_line(char* str, unsigned long ID)
 
 void process_pipe_timeout(char** argv)
 {
+        char c = '\0';
+
         g_pipe_timeout = atoi(argv[0]);
+
+        if (write(pipe_writer, &c, 1) == -1)
+                throw_error(2, "Erro inesperado na escrita.");
 }
 
 void process_exec_timeout(char** argv)
 {
+        char c = '\0';
+
         g_exec_timeout = atoi(argv[0]);
+
+        if (write(pipe_writer, &c, 1) == -1)
+                throw_error(2, "Erro inesperado na escrita.");
 }
 
 void process_exec_task(char** argv)
